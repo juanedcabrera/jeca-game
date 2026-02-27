@@ -1,6 +1,6 @@
 services:
   game:
-    build:
-      context: ./deploy
-      dockerfile: Dockerfile
+    # Image built and pushed by GitHub Actions on every push to master.
+    # Replace YOUR_GITHUB_USERNAME with your actual GitHub username.
+    image: ghcr.io/YOUR_GITHUB_USERNAME/jeca-game:latest
     restart: unless-stopped

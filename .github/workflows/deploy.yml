@@ -1,0 +1,68 @@
+name: Export & Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:   # allow manual trigger from GitHub UI
+
+env:
+  GODOT_VERSION: "4.3"
+  IMAGE: ghcr.io/${{ github.repository_owner }}/jeca-game
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write   # needed to push to GitHub Container Registry
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── 1. Install Godot headless ───────────────────────────────────────────
+      - name: Install Godot ${{ env.GODOT_VERSION }}
+        run: |
+          FILE="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${FILE}.zip"
+          unzip -q "${FILE}.zip"
+          sudo mv "${FILE}" /usr/local/bin/godot4
+          chmod +x /usr/local/bin/godot4
+
+      # ── 2. Install web export templates ────────────────────────────────────
+      - name: Install export templates
+        run: |
+          TPZ="Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${TPZ}"
+          DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$DEST"
+          unzip -q "$TPZ" -d /tmp/tpl
+          mv /tmp/tpl/templates/* "$DEST/"
+
+      # ── 3. Export game as Web build ─────────────────────────────────────────
+      - name: Export game for Web
+        run: |
+          mkdir -p deploy/web_export
+          godot4 --headless --export-release "Web" "$(pwd)/deploy/web_export/index.html"
+
+      # ── 4. Build Docker image and push to GHCR ─────────────────────────────
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./deploy      # Dockerfile lives in deploy/, web_export/ is relative to it
+          push: true
+          tags: ${{ env.IMAGE }}:latest
+
+      # ── 5. Tell Dokploy to redeploy ─────────────────────────────────────────
+      - name: Trigger Dokploy redeploy
+        if: ${{ env.DOKPLOY_WEBHOOK_URL != '' }}
+        env:
+          DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
+        run: curl -s -X POST "$DOKPLOY_WEBHOOK_URL"
