@@ -24,7 +24,8 @@ jobs:
       - name: Install Godot ${{ env.GODOT_VERSION }}
         run: |
           FILE="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
-          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${FILE}.zip"
+          wget --tries=5 --wait=5 --timeout=60 -q \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${FILE}.zip"
           unzip -q "${FILE}.zip"
           sudo mv "${FILE}" /usr/local/bin/godot4
           chmod +x /usr/local/bin/godot4
@@ -33,7 +34,8 @@ jobs:
       - name: Install export templates
         run: |
           TPZ="Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
-          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${TPZ}"
+          wget --tries=5 --wait=5 --timeout=60 -q \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${TPZ}"
           DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$DEST"
           unzip -q "$TPZ" -d /tmp/tpl
