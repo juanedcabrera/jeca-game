@@ -1,0 +1,6 @@
+services:
+  game:
+    build:
+      context: ./deploy
+      dockerfile: Dockerfile
+    restart: unless-stopped

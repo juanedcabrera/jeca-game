@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Sky background -->
+  <rect width="128" height="128" fill="#64B0FF" rx="16"/>
+  <!-- Sun -->
+  <circle cx="100" cy="28" r="18" fill="#FFD700"/>
+  <!-- Sun rays -->
+  <line x1="100" y1="4" x2="100" y2="12" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+  <line x1="100" y1="44" x2="100" y2="52" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+  <line x1="76" y1="28" x2="84" y2="28" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+  <line x1="116" y1="28" x2="124" y2="28" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+  <!-- Green hills -->
+  <ellipse cx="30" cy="110" rx="50" ry="30" fill="#5C8E4A"/>
+  <ellipse cx="100" cy="118" rx="45" ry="25" fill="#4A7038"/>
+  <!-- House -->
+  <rect x="20" y="70" width="50" height="35" fill="#E8C99A"/>
+  <polygon points="12,70 70,70 41,45" fill="#A52A2A"/>
+  <rect x="36" y="82" width="12" height="23" fill="#8B6B45"/>
+  <rect x="25" y="75" width="14" height="12" fill="#87CEEB"/>
+  <!-- Crops -->
+  <rect x="80" y="78" width="10" height="20" fill="#8B6B45"/>
+  <ellipse cx="85" cy="74" rx="8" ry="10" fill="#5C8E4A"/>
+  <rect x="96" y="78" width="10" height="20" fill="#8B6B45"/>
+  <ellipse cx="101" cy="74" rx="8" ry="10" fill="#FFD700"/>
+  <rect x="112" y="78" width="10" height="20" fill="#8B6B45"/>
+  <ellipse cx="117" cy="74" rx="8" ry="10" fill="#FF6B6B"/>
+</svg>
