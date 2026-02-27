@@ -24,17 +24,25 @@ jobs:
       - name: Install Godot ${{ env.GODOT_VERSION }}
         run: |
           FILE="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
-          wget --tries=5 --wait=5 --timeout=60 -q \
+          wget --tries=5 --wait=10 --timeout=120 --continue -q \
             "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${FILE}.zip"
           unzip -q "${FILE}.zip"
           sudo mv "${FILE}" /usr/local/bin/godot4
           chmod +x /usr/local/bin/godot4
 
       # ── 2. Install web export templates ────────────────────────────────────
+      - name: Cache export templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-templates
+
       - name: Install export templates
+        if: steps.cache-templates.outputs.cache-hit != 'true'
         run: |
           TPZ="Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
-          wget --tries=5 --wait=5 --timeout=60 -q \
+          wget --tries=5 --wait=10 --timeout=300 --continue -q \
             "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${TPZ}"
           DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$DEST"
@@ -67,4 +75,4 @@ jobs:
         if: ${{ env.DOKPLOY_WEBHOOK_URL != '' }}
         env:
           DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
-        run: curl -s -X POST "$DOKPLOY_WEBHOOK_URL"
+        run: curl -s --max-time 30 --retry 3 -X POST "$DOKPLOY_WEBHOOK_URL"
