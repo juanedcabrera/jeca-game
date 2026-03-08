@@ -68,6 +68,12 @@ func _build_scene() -> void:
 	# Chicken sprite
 	_add_chicken()
 
+	# Cloud and bird drawer (above sky/hills, below UI)
+	var _sky_anim_drawer = _SkyAnimDrawer.new()
+	_sky_anim_drawer.login_screen = self
+	_sky_anim_drawer.z_index = 1
+	add_child(_sky_anim_drawer)
+
 	# Sun with glow
 	var sun_node = Node2D.new()
 	sun_node.position = Vector2(820, 80)
@@ -360,44 +366,10 @@ func _process(delta: float) -> void:
 			b["speed"] = randf_range(30, 55)
 
 	queue_redraw()
-
-func _draw() -> void:
-	# Draw clouds
-	for pos in _cloud_positions:
-		_draw_cloud(pos)
-
-	# Draw birds
-	for b in _birds:
-		_draw_bird(b["pos"], b["wing_phase"])
-
-	# Draw fireflies
-	for f in _fireflies:
-		var alpha = f["base_alpha"] * (0.5 + 0.5 * sin(_time * 2.5 + f["phase"]))
-		if alpha > 0.1:
-			# Outer glow
-			draw_circle(f["pos"], 4.0, Color(1.0, 0.95, 0.5, alpha * 0.3))
-			# Inner bright dot
-			draw_circle(f["pos"], 1.5, Color(1.0, 1.0, 0.7, alpha))
-
-func _draw_cloud(pos: Vector2) -> void:
-	var c = Color(1, 1, 1, 0.7)
-	draw_circle(pos, 24, c)
-	draw_circle(pos + Vector2(26, 6), 18, c)
-	draw_circle(pos + Vector2(-22, 6), 16, c)
-	draw_circle(pos + Vector2(8, -8), 20, c)
-	draw_rect(Rect2(pos + Vector2(-34, 6), Vector2(90, 22)), c)
-
-func _draw_bird(pos: Vector2, wing_phase: float) -> void:
-	var col = Color(0.2, 0.15, 0.1, 0.75)
-	var wing_y = sin(wing_phase) * 4.0
-	# Body
-	draw_circle(pos, 2.5, col)
-	# Left wing
-	draw_line(pos, pos + Vector2(-6, -2 + wing_y), col, 1.5, true)
-	draw_line(pos + Vector2(-6, -2 + wing_y), pos + Vector2(-10, wing_y), col, 1.2, true)
-	# Right wing
-	draw_line(pos, pos + Vector2(6, -2 + wing_y), col, 1.5, true)
-	draw_line(pos + Vector2(6, -2 + wing_y), pos + Vector2(10, wing_y), col, 1.2, true)
+	# Also redraw the sky animation drawer
+	for child in get_children():
+		if child is _SkyAnimDrawer:
+			child.queue_redraw()
 
 func _set_loading(on: bool) -> void:
 	_loading = on
@@ -756,3 +728,41 @@ class _WoodCardDrawer extends Node2D:
 		draw_circle(pos + Vector2(-1, -1), 1.5, Color(0.7, 0.65, 0.6, 0.7))
 		# Dark center
 		draw_circle(pos, 1.2, Color(0.35, 0.3, 0.25))
+
+
+class _SkyAnimDrawer extends Node2D:
+	## Draws clouds, birds, and fireflies — separate node so z_index works above sky/hills
+	var login_screen: Node2D
+
+	func _draw() -> void:
+		if not login_screen:
+			return
+
+		var t = login_screen._time
+
+		# Draw clouds
+		for pos in login_screen._cloud_positions:
+			var c = Color(1, 1, 1, 0.7)
+			draw_circle(pos, 24, c)
+			draw_circle(pos + Vector2(26, 6), 18, c)
+			draw_circle(pos + Vector2(-22, 6), 16, c)
+			draw_circle(pos + Vector2(8, -8), 20, c)
+			draw_rect(Rect2(pos + Vector2(-34, 6), Vector2(90, 22)), c)
+
+		# Draw birds
+		for b in login_screen._birds:
+			var pos = b["pos"]
+			var wing_y = sin(b["wing_phase"]) * 4.0
+			var col = Color(0.2, 0.15, 0.1, 0.75)
+			draw_circle(pos, 2.5, col)
+			draw_line(pos, pos + Vector2(-6, -2 + wing_y), col, 1.5, true)
+			draw_line(pos + Vector2(-6, -2 + wing_y), pos + Vector2(-10, wing_y), col, 1.2, true)
+			draw_line(pos, pos + Vector2(6, -2 + wing_y), col, 1.5, true)
+			draw_line(pos + Vector2(6, -2 + wing_y), pos + Vector2(10, wing_y), col, 1.2, true)
+
+		# Draw fireflies
+		for f in login_screen._fireflies:
+			var alpha = f["base_alpha"] * (0.5 + 0.5 * sin(t * 2.5 + f["phase"]))
+			if alpha > 0.1:
+				draw_circle(f["pos"], 4.0, Color(1.0, 0.95, 0.5, alpha * 0.3))
+				draw_circle(f["pos"], 1.5, Color(1.0, 1.0, 0.7, alpha))
