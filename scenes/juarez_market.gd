@@ -34,7 +34,7 @@ const NPC_TABS = {
 const NPC_NAMES = {
 	"sofi":     "Sofi (Seeds)",
 	"lucas":    "Lucas (Livestock)",
-	"merchant": "The Merchant (Tools)",
+	"merchant": "Abuelo (Supplies)",
 }
 
 const SHOP_ITEMS = {
@@ -49,9 +49,9 @@ const SHOP_ITEMS = {
 		{"id": "cow",     "name": "Lucas's Cow",     "cost": 30, "icon": "🐄", "desc": "Tends for 5 coins/day"},
 	],
 	"tools": [
-		{"id": "water_jug",  "name": "Water Jug",   "cost": 0,  "icon": "💧", "desc": "Water your crops (you have one!)"},
-		{"id": "sprinkler",  "name": "Sprinkler",   "cost": 40, "icon": "💦", "desc": "Auto-waters all crops each day"},
-		{"id": "fertilizer", "name": "Fertilizer",  "cost": 15, "icon": "🌱", "desc": "Speeds up crop growth by 1 day"},
+		{"id": "sprinkler",   "name": "Sprinkler",    "cost": 40, "icon": "💦", "desc": "Auto-waters all crops each day"},
+		{"id": "fertilizer",  "name": "Fertilizer",   "cost": 15, "icon": "🌱", "desc": "Speeds up crop growth by 1 day"},
+		{"id": "animal_food", "name": "Animal Food",  "cost": 5,  "icon": "🥣", "desc": "Feed & water your livestock (1/day)"},
 	],
 }
 
@@ -95,17 +95,24 @@ func _unhandled_input(event: InputEvent) -> void:
 # ── Scene ─────────────────────────────────────────────────────────────────────
 
 func _build_scene() -> void:
-	# Sky
+	# Sky (small strip at very top)
 	var sky = ColorRect.new()
 	sky.color = Color(0.55, 0.76, 0.93)
-	sky.size = Vector2(960, 540)
+	sky.size = Vector2(960, 60)
 	add_child(sky)
 
-	# Ground
+	# Pavement behind shops (y=60 to y=280)
+	var back_pave = ColorRect.new()
+	back_pave.color = Color(0.55, 0.48, 0.38)
+	back_pave.size = Vector2(960, 220)
+	back_pave.position = Vector2(0, 60)
+	add_child(back_pave)
+
+	# Ground / walkable area (y=280 to y=540)
 	var ground = ColorRect.new()
 	ground.color = Color(0.62, 0.50, 0.34)
-	ground.size = Vector2(960, 240)
-	ground.position = Vector2(0, 300)
+	ground.size = Vector2(960, 260)
+	ground.position = Vector2(0, 280)
 	add_child(ground)
 
 	# Village market background + decorations
@@ -120,20 +127,29 @@ func _build_scene() -> void:
 		npc_node.name = "NPC_" + npc_id
 		add_child(npc_node)
 
-	# Action ribbon — fixed bottom strip
+	# Action prompt — compact centered bubble
 	_action_ribbon = Control.new()
 	_action_ribbon.visible = false
-	_action_ribbon.position = Vector2(0, 456)
+	_action_ribbon.z_index = 10
+
+	var rb_border = ColorRect.new()
+	rb_border.color = Color(0.55, 0.40, 0.18, 0.7)
+	rb_border.size = Vector2(262, 36)
+	rb_border.position = Vector2(349, 495)
+	_action_ribbon.add_child(rb_border)
+
 	var rb_bg = ColorRect.new()
-	rb_bg.color = Color(0.05, 0.03, 0.0, 0.90)
-	rb_bg.size = Vector2(960, 42)
+	rb_bg.color = Color(0.05, 0.03, 0.0, 0.85)
+	rb_bg.size = Vector2(260, 34)
+	rb_bg.position = Vector2(350, 496)
 	_action_ribbon.add_child(rb_bg)
+
 	_action_label = Label.new()
 	_action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_action_label.add_theme_font_size_override("font_size", 18)
+	_action_label.add_theme_font_size_override("font_size", 15)
 	_action_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.7))
-	_action_label.position = Vector2(0, 8)
-	_action_label.size = Vector2(960, 28)
+	_action_label.position = Vector2(350, 502)
+	_action_label.size = Vector2(260, 24)
 	_action_ribbon.add_child(_action_label)
 	add_child(_action_ribbon)
 
@@ -145,12 +161,19 @@ func _setup_walls() -> void:
 	_add_wall(Vector2(946, 50), Vector2(14, 466))
 	# Bottom wall
 	_add_wall(Vector2(0, 498), Vector2(960, 14))
-	# Top walls with gap for exit north (x 390–570)
-	_add_wall(Vector2(0, 50), Vector2(390, 14))
-	_add_wall(Vector2(570, 50), Vector2(390, 14))
-	# NPC stall blocker walls (prevent walking into stalls)
-	for pos in NPC_POSITIONS.values():
-		_add_wall(pos + Vector2(-55, -130), Vector2(110, 130))
+	# Top walls with gap for exit north (x 290–390, between Sofi & Lucas)
+	_add_wall(Vector2(0, 50), Vector2(290, 14))
+	_add_wall(Vector2(390, 50), Vector2(570, 14))
+	# Building-line wall — continuous barrier where ground meets shops
+	# Gap at x 290–390 for the exit corridor (between Sofi and Lucas shops)
+	_add_wall(Vector2(14, 280), Vector2(276, 14))     # left of exit path
+	_add_wall(Vector2(390, 280), Vector2(556, 14))    # right of exit path (covers Lucas onward)
+	# Side walls for exit corridor (prevent wandering behind shops)
+	_add_wall(Vector2(290, 50), Vector2(14, 230))     # left side of corridor
+	_add_wall(Vector2(376, 50), Vector2(14, 230))     # right side of corridor
+	# Cart collision (left and right market carts)
+	_add_wall(Vector2(30, 330), Vector2(80, 70))
+	_add_wall(Vector2(850, 330), Vector2(80, 70))
 
 func _add_wall(pos: Vector2, size: Vector2) -> void:
 	var w = StaticBody2D.new()
@@ -172,25 +195,26 @@ func _build_player() -> void:
 
 	var col = CollisionShape2D.new()
 	var shape = CapsuleShape2D.new()
-	shape.radius = 12
-	shape.height = 20
+	shape.radius = 18
+	shape.height = 30
 	col.shape = shape
-	col.position = Vector2(0, 6)
+	col.position = Vector2(0, 10)
 	_player.add_child(col)
 
 	_player_drawer = _MarketPlayer.new()
 	_player_drawer.gender = PlayerData.player_gender
+	_player_drawer.scale = Vector2(1.8, 1.8)
 	_player.add_child(_player_drawer)
 
 	var name_lbl = Label.new()
 	name_lbl.text = PlayerData.player_name
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_lbl.add_theme_font_size_override("font_size", 13)
+	name_lbl.add_theme_font_size_override("font_size", 14)
 	name_lbl.add_theme_color_override("font_color", Color.WHITE)
 	name_lbl.add_theme_color_override("font_shadow_color", Color.BLACK)
 	name_lbl.add_theme_constant_override("shadow_offset_x", 1)
 	name_lbl.add_theme_constant_override("shadow_offset_y", 1)
-	name_lbl.position = Vector2(-50, -52)
+	name_lbl.position = Vector2(-50, -72)
 	name_lbl.size = Vector2(100, 24)
 	_player.add_child(name_lbl)
 
@@ -200,19 +224,47 @@ func _build_player() -> void:
 # ── HUD ────────────────────────────────────────────────────────────────────────
 
 func _build_hud() -> void:
+	# ── Top-right status panel (matches farm) ──
+	var hud_border = ColorRect.new()
+	hud_border.color = Color(0.55, 0.40, 0.18, 0.6)
+	hud_border.size = Vector2(152, 54)
+	hud_border.position = Vector2(805, 3)
+	hud_border.z_index = 9
+	add_child(hud_border)
+
 	var hud_bg = ColorRect.new()
-	hud_bg.color = Color(0.08, 0.05, 0.02, 0.88)
-	hud_bg.size = Vector2(960, 50)
+	hud_bg.color = Color(0.08, 0.05, 0.02, 0.75)
+	hud_bg.size = Vector2(150, 52)
+	hud_bg.position = Vector2(806, 4)
+	hud_bg.z_index = 10
 	add_child(hud_bg)
 
-	var title_lbl = GameManager.make_label("🏪  Juarez Market", Vector2(10, 12), 20, Color(1.0, 0.92, 0.3))
-	add_child(title_lbl)
-
-	_hud_coins = GameManager.make_label("💰 %d coins" % PlayerData.coins, Vector2(720, 12), 20, Color(1.0, 0.9, 0.2))
+	_hud_coins = GameManager.make_label("💰 %d" % PlayerData.coins, Vector2(814, 8), 15, Color(1.0, 0.9, 0.2))
+	_hud_coins.z_index = 11
 	add_child(_hud_coins)
 
-	var hint = GameManager.make_label("Walk ↑ north to return to farm  |  [E] Talk to NPCs", Vector2(220, 54), 13, Color(0.85, 0.85, 0.65))
-	add_child(hint)
+	var day_lbl = GameManager.make_label("Day %d" % PlayerData.day, Vector2(814, 28), 14, Color(0.85, 0.9, 0.75))
+	day_lbl.z_index = 11
+	add_child(day_lbl)
+
+	# ── Top-left scene title ──
+	var title_border = ColorRect.new()
+	title_border.color = Color(0.55, 0.40, 0.18, 0.6)
+	title_border.size = Vector2(172, 34)
+	title_border.position = Vector2(3, 3)
+	title_border.z_index = 9
+	add_child(title_border)
+
+	var title_bg = ColorRect.new()
+	title_bg.color = Color(0.08, 0.05, 0.02, 0.75)
+	title_bg.size = Vector2(170, 32)
+	title_bg.position = Vector2(4, 4)
+	title_bg.z_index = 10
+	add_child(title_bg)
+
+	var title_lbl = GameManager.make_label("Juarez Market", Vector2(12, 8), 16, Color(1.0, 0.92, 0.3))
+	title_lbl.z_index = 11
+	add_child(title_lbl)
 
 # ── Physics & Movement ─────────────────────────────────────────────────────────
 
@@ -244,8 +296,8 @@ func _physics_process(delta: float) -> void:
 		_player_drawer.walk_frame = _walk_frame
 		_player_drawer.queue_redraw()
 
-	# Exit north → back to farm
-	if _player.position.y < 62 and not _transitioning:
+	# Exit north → back to farm (corridor between Sofi & Lucas, x 290–390)
+	if _player.position.y < 75 and _player.position.x > 280 and _player.position.x < 400 and not _transitioning:
 		_transitioning = true
 		PlayerData.save_game()
 		GameManager.go_to_farm("from_market")
@@ -321,7 +373,7 @@ func _build_shop_overlay() -> void:
 	var tabs = [
 		["seeds",     "🌻 Seeds (Sofi)",       Color(0.35, 0.55, 0.15)],
 		["livestock", "🐔 Livestock (Lucas)",   Color(0.55, 0.35, 0.15)],
-		["tools",     "🔧 Tools",               Color(0.25, 0.35, 0.60)],
+		["tools",     "🔧 Abuelo's Supplies",    Color(0.25, 0.35, 0.60)],
 	]
 	_tab_buttons.clear()
 	for i in range(tabs.size()):
@@ -379,7 +431,7 @@ func _show_tab(tab: String) -> void:
 	var speech_texts = {
 		"seeds":     "Hi! I'm Sofi! Buy seeds to grow your farm!",
 		"livestock": "Howdy! I'm Lucas! Animals earn you coins every day!",
-		"tools":     "Quality tools for your farm!",
+		"tools":     "Hola mijo! Abuelo has everything you need!",
 	}
 	var speech_lbl = _shop_overlay.get_node_or_null("SpeechLabel")
 	if speech_lbl:
@@ -484,7 +536,7 @@ func _update_overlay_coins() -> void:
 	if _overlay_coins:
 		_overlay_coins.text = "💰 %d coins" % PlayerData.coins
 	if _hud_coins:
-		_hud_coins.text = "💰 %d coins" % PlayerData.coins
+		_hud_coins.text = "💰 %d" % PlayerData.coins
 
 func _update_tab_highlight() -> void:
 	for tab_id in _tab_buttons:
@@ -509,11 +561,11 @@ func _update_inv_label() -> void:
 	var inv = _shop_overlay.get_node_or_null("InvLabel")
 	if inv:
 		var parts = []
-		for key in ["sunflower_seeds", "carrot_seeds", "strawberry_seeds", "water_jug", "sprinkler", "fertilizer"]:
+		for key in ["sunflower_seeds", "carrot_seeds", "strawberry_seeds", "water_jug", "sprinkler", "fertilizer", "animal_food"]:
 			var count = PlayerData.get_item_count(key)
 			if count > 0:
 				var icons = {"sunflower_seeds":"🌻","carrot_seeds":"🥕","strawberry_seeds":"🍓",
-							 "water_jug":"💧","sprinkler":"💦","fertilizer":"🌱"}
+							 "water_jug":"💧","sprinkler":"💦","fertilizer":"🌱","animal_food":"🥣"}
 				parts.append("%s×%d" % [icons.get(key, key), count])
 		inv.text = "Inventory: " + (", ".join(parts) if parts.size() > 0 else "Empty")
 
@@ -534,38 +586,67 @@ class _MarketDeco extends Node2D:
 		for i in range(3):
 			var spr = Sprite2D.new()
 			spr.texture = load(shop_paths[i])
-			spr.scale = Vector2(2.2, 2.2)
-			spr.position = Vector2(200 + i * 280, 215)
+			spr.scale = Vector2(1.8, 1.8)
+			spr.position = Vector2(200 + i * 280, 230)
 			add_child(spr)
 
 		# Market carts on sides
 		for cx in [70, 890]:
 			var cart = Sprite2D.new()
 			cart.texture = load("res://Pixelwood Valley 1.1.2/Village/Cart/1.png")
-			cart.scale = Vector2(2.8, 2.8)
-			cart.position = Vector2(cx, 360)
+			cart.scale = Vector2(2.2, 2.2)
+			cart.position = Vector2(cx, 370)
 			add_child(cart)
 
 		# Trees at far sides
 		for tx in [30, 930]:
 			var tree = Sprite2D.new()
 			tree.texture = load("res://Pixelwood Valley 1.1.2/Trees/Tree1.png")
-			tree.scale = Vector2(1.5, 1.5)
-			tree.position = Vector2(tx, 190)
+			tree.scale = Vector2(1.2, 1.2)
+			tree.position = Vector2(tx, 200)
 			add_child(tree)
 
 	func _draw() -> void:
-		# Cobblestone market path
+		# Cobblestone pavement behind shops (y=60 to y=280)
+		var rng = RandomNumberGenerator.new()
+		rng.seed = 5555
+		for row in range(8):
+			for col in range(12):
+				var rx = col * 80 + (row % 2) * 40
+				var ry = 60 + row * 28
+				var v = rng.randf_range(0.92, 1.08)
+				draw_rect(Rect2(rx, ry, 76, 25), Color(0.52 * v, 0.45 * v, 0.36 * v))
+				draw_rect(Rect2(rx, ry, 76, 25), Color(0.42, 0.36, 0.28), false, 1)
+
+		# Cobblestone market path (walkable area)
 		for row in range(4):
 			for col in range(12):
 				var rx = col * 80 + (row % 2) * 40
 				var ry = 388 + row * 14
 				draw_rect(Rect2(rx, ry, 76, 11), Color(0.70, 0.62, 0.50))
 				draw_rect(Rect2(rx, ry, 76, 11), Color(0.55, 0.48, 0.38), false, 1)
-		# North exit path (back to farm)
-		draw_rect(Rect2(390, 50, 180, 70), Color(0.62, 0.50, 0.34))
+		# North exit path (back to farm) — dirt path through the pavement
+		draw_rect(Rect2(290, 0, 100, 360), Color(0.58, 0.46, 0.30))
+		# Path border lines
+		draw_line(Vector2(290, 0), Vector2(290, 360), Color(0.48, 0.36, 0.22), 2)
+		draw_line(Vector2(390, 0), Vector2(390, 360), Color(0.48, 0.36, 0.22), 2)
+		# Exit arrow indicators along the path
+		var arrow_color = Color(0.85, 0.75, 0.5, 0.6)
+		for ai in range(5):
+			var ay = 80 + ai * 40
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(325, ay), Vector2(340, ay - 12), Vector2(355, ay)
+			]), arrow_color)
+		# Exit sign (back to farm)
+		var sign_post = Color(0.45, 0.28, 0.10)
+		var sign_plank = Color(0.62, 0.42, 0.18)
+		draw_rect(Rect2(337, 58, 6, 26), sign_post)
+		draw_rect(Rect2(308, 44, 64, 18), sign_plank)
+		draw_string(ThemeDB.fallback_font, Vector2(314, 58),
+			"Farm", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.95, 0.88, 0.60))
+
 		# Stall sign boards
-		var sign_names = ["Sofi's Seeds", "Lucas's Farm", "The Merchant"]
+		var sign_names = ["Sofi's Seeds", "Lucas's Farm", "Abuelo"]
 		for i in range(3):
 			var sx = 145 + i * 280
 			draw_rect(Rect2(sx, 136, 112, 20), Color(0.62, 0.42, 0.18))
@@ -592,7 +673,7 @@ class _StallNPC extends Node2D:
 		_sprite.hframes = 4
 		_sprite.vframes = 7
 		_sprite.frame = 0
-		_sprite.scale = Vector2(2.2, 2.2)
+		_sprite.scale = Vector2(1.8, 1.8)
 		_sprite.position = Vector2(0, 0)
 		match npc_id:
 			"sofi":
@@ -605,9 +686,10 @@ class _StallNPC extends Node2D:
 
 	func _draw() -> void:
 		# Floating name bubble
-		draw_rect(Rect2(-58, -128, 116, 24), Color(1.0, 1.0, 0.9, 0.90))
-		var npc_names = {"sofi": "Sofi", "lucas": "Lucas", "merchant": "Merchant"}
-		draw_string(ThemeDB.fallback_font, Vector2(-50, -110),
+		draw_rect(Rect2(-46, -100, 92, 22), Color(1.0, 1.0, 0.9, 0.90))
+		draw_rect(Rect2(-47, -101, 94, 24), Color(0.55, 0.40, 0.18, 0.5), false, 1.0)
+		var npc_names = {"sofi": "Sofi", "lucas": "Lucas", "merchant": "Abuelo"}
+		draw_string(ThemeDB.fallback_font, Vector2(-40, -84),
 			npc_names.get(npc_id, npc_id), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.2, 0.1, 0.0))
 
 
@@ -644,7 +726,7 @@ class _MarketPlayer extends Node2D:
 			_sprite.texture = load(PW_SPRITES[tex_key])
 			_sprite.hframes = 4
 			_last_tex_key = tex_key
-		_sprite.flip_h = (facing == "left")
+		_sprite.flip_h = (facing == "right")
 		_sprite.frame = int(walk_frame * 4) % 4 if is_moving else 0
 
 	func _draw() -> void:

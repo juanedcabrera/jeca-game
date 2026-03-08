@@ -18,6 +18,7 @@ var inventory: Dictionary = {
 	"strawberry_seeds": 0,
 	"fertilizer": 0,
 	"sprinkler": 0,
+	"animal_food": 0,
 }
 
 # Farm tiles: array of dicts with keys: state, crop_type, growth, watered
@@ -26,6 +27,7 @@ var farm_tiles: Array = []
 
 # Animals: array of dicts with keys: type, name, happiness
 var animals: Array = []
+var animals_tended_today: bool = false
 
 # Progress
 var day: int = 1
@@ -64,8 +66,10 @@ func reset() -> void:
 		"strawberry_seeds": 0,
 		"fertilizer": 0,
 		"sprinkler": 0,
+		"animal_food": 0,
 	}
 	animals = []
+	animals_tended_today = false
 	day = 1
 	math_problems_solved = 0
 	words_read = 0
@@ -108,6 +112,7 @@ func get_item_count(item_id: String) -> int:
 
 func advance_day() -> void:
 	day += 1
+	animals_tended_today = false
 	# Grow all planted crops
 	for tile in farm_tiles:
 		if tile["state"] == "planted":
@@ -182,6 +187,7 @@ func save_game() -> void:
 		"math_problems_solved": math_problems_solved,
 		"words_read": words_read,
 		"intro_seen": intro_seen,
+		"animals_tended_today": animals_tended_today,
 	}
 	# Local save (instant, works offline)
 	var file = FileAccess.open(_slot_path(current_slot), FileAccess.WRITE)
@@ -216,6 +222,7 @@ func load_slot(slot: int) -> bool:
 	math_problems_solved = data.get("math_problems_solved", 0)
 	words_read = data.get("words_read", 0)
 	intro_seen = data.get("intro_seen", false)
+	animals_tended_today = data.get("animals_tended_today", false)
 	game_started = true
 	return true
 

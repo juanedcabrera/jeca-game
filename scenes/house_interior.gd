@@ -145,25 +145,26 @@ func _build_player() -> void:
 
 	var col = CollisionShape2D.new()
 	var shape = CapsuleShape2D.new()
-	shape.radius = 12
-	shape.height = 18
+	shape.radius = 18
+	shape.height = 30
 	col.shape = shape
-	col.position = Vector2(0, 4)
+	col.position = Vector2(0, 10)
 	_player.add_child(col)
 
 	_player_drawer = _RoomPlayer.new()
 	_player_drawer.gender = PlayerData.player_gender
+	_player_drawer.scale = Vector2(1.8, 1.8)
 	_player.add_child(_player_drawer)
 
 	var name_lbl = Label.new()
 	name_lbl.text = PlayerData.player_name
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_lbl.add_theme_font_size_override("font_size", 13)
+	name_lbl.add_theme_font_size_override("font_size", 14)
 	name_lbl.add_theme_color_override("font_color", Color.WHITE)
 	name_lbl.add_theme_color_override("font_shadow_color", Color.BLACK)
 	name_lbl.add_theme_constant_override("shadow_offset_x", 1)
 	name_lbl.add_theme_constant_override("shadow_offset_y", 1)
-	name_lbl.position = Vector2(-50, -48)
+	name_lbl.position = Vector2(-50, -72)
 	name_lbl.size = Vector2(100, 24)
 	_player.add_child(name_lbl)
 
@@ -456,7 +457,7 @@ class _RoomPlayer extends Node2D:
 			_sprite.texture = load(PW_SPRITES[tex_key])
 			_sprite.hframes = 4
 			_last_tex_key = tex_key
-		_sprite.flip_h = (facing == "left")
+		_sprite.flip_h = (facing == "right")
 		_sprite.frame = int(walk_frame * 4) % 4 if is_moving else 0
 
 	func _draw() -> void:
