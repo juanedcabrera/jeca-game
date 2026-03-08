@@ -173,19 +173,37 @@ func _build_scene() -> void:
 	_sign_up_btn.z_index = 5
 	add_child(_sign_up_btn)
 
-	# Hint
-	var hint = Label.new()
-	hint.text = "One family account — up to 3 kids can play"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 13)
-	hint.add_theme_color_override("font_color", Color(0.6, 0.7, 0.5))
-	hint.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.4))
-	hint.add_theme_constant_override("shadow_offset_x", 1)
-	hint.add_theme_constant_override("shadow_offset_y", 1)
-	hint.position = Vector2(280, 418)
-	hint.size = Vector2(400, 22)
-	hint.z_index = 5
-	add_child(hint)
+	# Divider ("or")
+	var divider_left = ColorRect.new()
+	divider_left.color = Color(0.55, 0.45, 0.3, 0.5)
+	divider_left.size = Vector2(140, 1)
+	divider_left.position = Vector2(310, 418)
+	divider_left.z_index = 5
+	add_child(divider_left)
+
+	var or_label = Label.new()
+	or_label.text = "or"
+	or_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	or_label.add_theme_font_size_override("font_size", 14)
+	or_label.add_theme_color_override("font_color", Color(0.7, 0.65, 0.5))
+	or_label.position = Vector2(455, 408)
+	or_label.size = Vector2(50, 20)
+	or_label.z_index = 5
+	add_child(or_label)
+
+	var divider_right = ColorRect.new()
+	divider_right.color = Color(0.55, 0.45, 0.3, 0.5)
+	divider_right.size = Vector2(140, 1)
+	divider_right.position = Vector2(510, 418)
+	divider_right.z_index = 5
+	add_child(divider_right)
+
+	# Google Sign In button
+	var google_btn = _make_wood_button("Sign in with Google", Vector2(340, 430), Vector2(280, 44), Color(0.55, 0.22, 0.18))
+	google_btn.add_theme_font_size_override("font_size", 17)
+	google_btn.pressed.connect(_on_google_sign_in)
+	google_btn.z_index = 5
+	add_child(google_btn)
 
 func _make_input(placeholder: String, pos: Vector2, secret: bool) -> LineEdit:
 	var input = LineEdit.new()
@@ -428,6 +446,14 @@ func _on_sign_up() -> void:
 		# Supabase may require email confirmation (disable in dashboard for games)
 		_status_label.text = "Check your email to confirm, then sign in!"
 		_status_label.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
+
+func _on_google_sign_in() -> void:
+	if _loading:
+		return
+	if not OS.has_feature("web"):
+		_status_label.text = "Google sign-in only works in the web version."
+		return
+	Supabase.sign_in_with_google()
 
 
 # == Inner drawers =============================================================
@@ -674,10 +700,10 @@ class _BannerDrawer extends Node2D:
 
 
 class _WoodCardDrawer extends Node2D:
-	## Draws a wooden plank card at the node's position. Size: 400x340
+	## Draws a wooden plank card at the node's position. Size: 400x380
 	func _draw() -> void:
 		var w = 400.0
-		var h = 340.0
+		var h = 380.0
 
 		# Outer shadow
 		draw_rect(Rect2(4, 4, w, h), Color(0, 0, 0, 0.3))

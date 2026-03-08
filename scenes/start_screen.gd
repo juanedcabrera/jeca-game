@@ -21,10 +21,17 @@ var _star_positions: Array = []
 var _star_phases: Array = []
 
 func _ready() -> void:
-	# If not logged in, redirect to login screen
+	# If not logged in, wait briefly for OAuth callback before redirecting
 	if not Supabase.is_logged_in:
-		GameManager.change_scene("login_screen")
-		return
+		if OS.has_feature("web") and str(JavaScriptBridge.eval("window.location.hash")).length() > 1:
+			# OAuth callback in progress — wait for auth_changed signal
+			await Supabase.auth_changed
+			if not Supabase.is_logged_in:
+				GameManager.change_scene("login_screen")
+				return
+		else:
+			GameManager.change_scene("login_screen")
+			return
 
 	# Pre-generate random decoration positions
 	_generate_decoration_data()

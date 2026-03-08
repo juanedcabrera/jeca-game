@@ -19,6 +19,9 @@ signal auth_changed(logged_in: bool)
 
 func _ready() -> void:
 	_load_session()
+	# Check for OAuth callback tokens in URL fragment (web only)
+	if OS.has_feature("web"):
+		_check_oauth_callback()
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -62,6 +65,48 @@ func refresh_session() -> bool:
 
 func get_user_email() -> String:
 	return _user_email
+
+# ── OAuth ─────────────────────────────────────────────────────────────────────
+
+func sign_in_with_google() -> void:
+	if not OS.has_feature("web"):
+		push_warning("Google OAuth only works in web builds")
+		return
+	var redirect_url = JavaScriptBridge.eval("window.location.origin + window.location.pathname")
+	var oauth_url = SUPABASE_URL + "/auth/v1/authorize?provider=google&redirect_to=" + str(redirect_url)
+	JavaScriptBridge.eval("window.location.href = '%s'" % oauth_url)
+
+func _check_oauth_callback() -> void:
+	# After OAuth redirect, Supabase puts tokens in the URL hash fragment:
+	# #access_token=...&refresh_token=...&token_type=bearer&...
+	var fragment = str(JavaScriptBridge.eval("window.location.hash.substring(1)"))
+	if fragment.is_empty():
+		return
+
+	var params := {}
+	for pair in fragment.split("&"):
+		var kv = pair.split("=", true, 2)
+		if kv.size() == 2:
+			params[kv[0]] = kv[1].uri_decode()
+
+	if not params.has("access_token"):
+		return
+
+	# Apply session from OAuth tokens
+	_access_token  = params.get("access_token", "")
+	_refresh_token = params.get("refresh_token", "")
+
+	# Fetch user info with the token
+	var user_result = await _http_get("/auth/v1/user")
+	if user_result.has("id"):
+		_user_id    = user_result.get("id", "")
+		_user_email = user_result.get("email", "")
+		is_logged_in = true
+		_save_session()
+		emit_signal("auth_changed", true)
+
+	# Clean the URL hash so it doesn't re-trigger on refresh
+	JavaScriptBridge.eval("history.replaceState(null, '', window.location.pathname)")
 
 # ── Database ──────────────────────────────────────────────────────────────────
 
