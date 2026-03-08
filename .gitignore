@@ -17,3 +17,4 @@ deploy/web_export/
 
 # Secrets
 supabase/.env
+deploy/supabase.env.example

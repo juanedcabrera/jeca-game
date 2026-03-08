@@ -4,8 +4,15 @@ extends Node
 # Local dev: run `supabase start` from /projects/jeca-game/ to get these.
 # For cloud: swap to your Supabase project URL + anon key.
 # ─────────────────────────────────────────────────────────────────────────────
-const SUPABASE_URL      = "http://127.0.0.1:54321"
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+# Local dev (supabase start)
+const _LOCAL_URL      = "http://127.0.0.1:54321"
+const _LOCAL_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+# Production (self-hosted)
+const _PROD_URL      = "https://supabase-cabreraharvest.juanedcabrera.com"
+const _PROD_ANON_KEY = "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3Mjk3MjgwMDAsICJleHAiOiAyMDQ1MDg4MDAwfQ.-OTW87dj2tf8aj1UvP3OjVWxk1gYEOPkkEXAtjgG-3E"
+
+var SUPABASE_URL: String
+var SUPABASE_ANON_KEY: String
 const SESSION_FILE     = "user://supabase_session.json"
 
 var _access_token:  String = ""
@@ -18,6 +25,14 @@ var is_logged_in: bool = false
 signal auth_changed(logged_in: bool)
 
 func _ready() -> void:
+	# Auto-detect environment: web build = production, else local dev
+	if OS.has_feature("web"):
+		SUPABASE_URL = _PROD_URL
+		SUPABASE_ANON_KEY = _PROD_ANON_KEY
+	else:
+		SUPABASE_URL = _LOCAL_URL
+		SUPABASE_ANON_KEY = _LOCAL_ANON_KEY
+
 	_load_session()
 	# Check for OAuth callback tokens in URL fragment (web only)
 	if OS.has_feature("web"):
