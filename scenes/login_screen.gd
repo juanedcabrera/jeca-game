@@ -8,6 +8,7 @@ var _sign_up_btn:    Button
 var _loading:        bool = false
 var _time:           float = 0.0
 var _title_label:    Label
+var _use_html_inputs: bool = false  # True on web (for iOS keyboard support)
 
 # Animated elements
 var _cloud_positions: Array = []
@@ -31,16 +32,146 @@ func _ready() -> void:
 	_init_birds()
 	_build_scene()
 
-	# On desktop, auto-focus email input; on web, let the user tap
-	# (mobile browsers require user gesture to open virtual keyboard)
-	if not OS.has_feature("web"):
+	# On web, create native HTML inputs overlaying the canvas for iOS keyboard support
+	if OS.has_feature("web"):
+		_use_html_inputs = true
+		_setup_html_inputs()
+	else:
 		await get_tree().process_frame
 		if _email_input:
 			_email_input.grab_focus()
 
 func _on_auth_changed(logged_in: bool) -> void:
 	if logged_in:
+		_remove_html_inputs()
 		GameManager.change_scene("start_screen")
+
+# ── HTML input overlay (web/iOS keyboard fix) ────────────────────────────────
+# iOS Safari requires native HTML <input> focus from a user gesture to open
+# the virtual keyboard. Godot's LineEdit processes touches asynchronously,
+# so the keyboard never opens. We overlay visible HTML inputs (hiding the
+# Godot LineEdits) and sync their text into GDScript each frame.
+
+func _setup_html_inputs() -> void:
+	# Viewport is 960x540; inputs are positioned in viewport coords.
+	# We calculate screen positions from the canvas bounding rect.
+	JavaScriptBridge.eval("""
+	(function() {
+		var canvas = document.querySelector('canvas');
+		if (!canvas) return;
+
+		function mapRect(gx, gy, gw, gh) {
+			var cr = canvas.getBoundingClientRect();
+			var gameAspect = 960 / 540;
+			var canvasAspect = cr.width / cr.height;
+			var ox = 0, oy = 0, s = 1;
+			if (canvasAspect > gameAspect) {
+				s = cr.height / 540;
+				ox = (cr.width - 960 * s) / 2;
+			} else {
+				s = cr.width / 960;
+				oy = (cr.height - 540 * s) / 2;
+			}
+			return {
+				left: cr.left + ox + gx * s,
+				top: cr.top + oy + gy * s,
+				width: gw * s,
+				height: gh * s,
+				scale: s
+			};
+		}
+
+		function makeInput(id, gx, gy, gw, gh, ph, type) {
+			var old = document.getElementById(id);
+			if (old) old.remove();
+			var inp = document.createElement('input');
+			inp.id = id;
+			inp.type = type;
+			inp.placeholder = ph;
+			inp.autocomplete = type === 'password' ? 'current-password' : 'email';
+			inp.autocapitalize = 'none';
+			inp.autocorrect = 'off';
+			inp.spellcheck = false;
+			var m = mapRect(gx, gy, gw, gh);
+			inp.style.cssText = 'position:fixed;z-index:9999;box-sizing:border-box;'
+				+ 'left:' + m.left + 'px;top:' + m.top + 'px;'
+				+ 'width:' + m.width + 'px;height:' + m.height + 'px;'
+				+ 'font-size:' + Math.max(16, 20 * m.scale) + 'px;'
+				+ 'padding:0 12px;border:2px solid #8C6633;border-radius:6px;'
+				+ 'background:rgba(245,235,210,0.97);color:#33261A;outline:none;'
+				+ '-webkit-appearance:none;';
+			document.body.appendChild(inp);
+			return inp;
+		}
+
+		makeInput('godot-email', 310, 202, 340, 44, 'family@email.com', 'email');
+		var pwInput = makeInput('godot-password', 310, 276, 340, 44, '', 'password');
+		// Enter key in email field moves to password; Enter in password triggers sign-in
+		document.getElementById('godot-email').addEventListener('keydown', function(e) {
+			if (e.key === 'Enter') { e.preventDefault(); pwInput.focus(); }
+		});
+		pwInput.addEventListener('keydown', function(e) {
+			if (e.key === 'Enter') { e.preventDefault(); window._godotSignInRequested = true; }
+		});
+
+		// Reposition on resize
+		window._godotInputResize = function() {
+			var ids = [
+				['godot-email', 310, 202, 340, 44],
+				['godot-password', 310, 276, 340, 44]
+			];
+			for (var i = 0; i < ids.length; i++) {
+				var el = document.getElementById(ids[i][0]);
+				if (!el) continue;
+				var m = mapRect(ids[i][1], ids[i][2], ids[i][3], ids[i][4]);
+				el.style.left = m.left + 'px';
+				el.style.top = m.top + 'px';
+				el.style.width = m.width + 'px';
+				el.style.height = m.height + 'px';
+				el.style.fontSize = Math.max(16, 20 * m.scale) + 'px';
+			}
+		};
+		window.addEventListener('resize', window._godotInputResize);
+	})();
+	""")
+
+func _remove_html_inputs() -> void:
+	if not _use_html_inputs:
+		return
+	JavaScriptBridge.eval("""
+	(function() {
+		['godot-email', 'godot-password'].forEach(function(id) {
+			var el = document.getElementById(id);
+			if (el) el.remove();
+		});
+		if (window._godotInputResize) {
+			window.removeEventListener('resize', window._godotInputResize);
+			delete window._godotInputResize;
+		}
+		delete window._godotSignInRequested;
+	})();
+	""")
+
+func _sync_html_inputs() -> void:
+	if not _use_html_inputs:
+		return
+	# Single eval to reduce bridge overhead; returns "email\npassword"
+	var raw = JavaScriptBridge.eval(
+		"(document.getElementById('godot-email')?.value||'')"
+		+ "+'\\n'+(document.getElementById('godot-password')?.value||'')"
+	)
+	if raw == null:
+		return
+	var parts = str(raw).split("\n", true, 1)
+	if parts.size() < 2:
+		return
+	if _email_input and _email_input.text != parts[0]:
+		_email_input.text = parts[0]
+	if _password_input and _password_input.text != parts[1]:
+		_password_input.text = parts[1]
+
+func _exit_tree() -> void:
+	_remove_html_inputs()
 
 func _init_fireflies() -> void:
 	for i in range(18):
@@ -161,6 +292,8 @@ func _build_scene() -> void:
 	add_child(email_lbl)
 	_email_input = _make_input("family@email.com", Vector2(310, 202), false)
 	_email_input.z_index = 5
+	if _use_html_inputs:
+		_email_input.visible = false  # HTML overlay handles display on web
 	add_child(_email_input)
 
 	# Password
@@ -170,6 +303,8 @@ func _build_scene() -> void:
 	add_child(pw_lbl)
 	_password_input = _make_input("", Vector2(310, 276), true)
 	_password_input.z_index = 5
+	if _use_html_inputs:
+		_password_input.visible = false  # HTML overlay handles display on web
 	add_child(_password_input)
 
 	# Status label (errors / success messages)
@@ -381,6 +516,14 @@ func _add_chicken() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	_sync_html_inputs()
+
+	# Check if Enter was pressed in the HTML password field
+	if _use_html_inputs:
+		var requested = JavaScriptBridge.eval("window._godotSignInRequested")
+		if requested:
+			JavaScriptBridge.eval("window._godotSignInRequested = false")
+			_on_sign_in()
 
 	# Animate title bob
 	if _title_label:
@@ -455,6 +598,7 @@ func _on_sign_in() -> void:
 	if result.has("error"):
 		_status_label.text = result["error"]
 	else:
+		_remove_html_inputs()
 		GameManager.change_scene("start_screen")
 
 func _on_sign_up() -> void:
@@ -474,6 +618,7 @@ func _on_sign_up() -> void:
 	if result.has("error"):
 		_status_label.text = result["error"]
 	elif Supabase.is_logged_in:
+		_remove_html_inputs()
 		GameManager.change_scene("start_screen")
 	else:
 		# Supabase may require email confirmation (disable in dashboard for games)
