@@ -125,12 +125,13 @@ func _check_oauth_callback() -> void:
 		_user_email = user_result.get("email", "")
 		is_logged_in = true
 		_save_session()
-		emit_signal("auth_changed", true)
+		# Deferred so scene _ready() has time to connect listeners
+		call_deferred("emit_signal", "auth_changed", true)
 	else:
 		# OAuth failed — still emit so listeners don't hang forever
 		_access_token = ""
 		_refresh_token = ""
-		emit_signal("auth_changed", false)
+		call_deferred("emit_signal", "auth_changed", false)
 
 # ── Database ──────────────────────────────────────────────────────────────────
 

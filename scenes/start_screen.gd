@@ -25,9 +25,13 @@ func _ready() -> void:
 	if not Supabase.is_logged_in:
 		var has_hash = OS.has_feature("web") and str(JavaScriptBridge.eval("window.location.hash")).length() > 1
 		if has_hash or Supabase.oauth_pending:
-			# OAuth callback in progress — wait for auth_changed with timeout
-			var timer = get_tree().create_timer(10.0)
+			# Show loading screen so user doesn't see gray
+			_show_oauth_loading()
+			# Wait for auth or timeout
+			var timer = get_tree().create_timer(12.0)
 			await _await_first(Supabase.auth_changed, timer.timeout)
+			# Clean up loading screen
+			_clear_oauth_loading()
 			if not Supabase.is_logged_in:
 				GameManager.change_scene("login_screen")
 				return
@@ -45,19 +49,54 @@ func _ready() -> void:
 	_sync_label.visible = false
 	_build_slot_cards()
 
+var _oauth_loading_nodes: Array = []
+
+func _show_oauth_loading() -> void:
+	# Dark background
+	var bg = ColorRect.new()
+	bg.color = Color(0.08, 0.06, 0.03)
+	bg.position = Vector2.ZERO
+	bg.size = Vector2(960, 540)
+	add_child(bg)
+	_oauth_loading_nodes.append(bg)
+
+	# "Signing in..." message
+	var lbl = Label.new()
+	lbl.text = "Signing in..."
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 28)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	lbl.add_theme_color_override("font_shadow_color", Color(0.3, 0.15, 0.0))
+	lbl.add_theme_constant_override("shadow_offset_x", 2)
+	lbl.add_theme_constant_override("shadow_offset_y", 2)
+	lbl.position = Vector2(0, 220)
+	lbl.size = Vector2(960, 100)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(lbl)
+	_oauth_loading_nodes.append(lbl)
+
+func _clear_oauth_loading() -> void:
+	for node in _oauth_loading_nodes:
+		node.queue_free()
+	_oauth_loading_nodes.clear()
+
 ## Await whichever signal fires first; returns when either completes.
 func _await_first(sig1: Signal, sig2: Signal) -> void:
 	var done = false
-	var _cb1 = func(_a = null): done = true
-	var _cb2 = func(): done = true
-	sig1.connect(_cb1, CONNECT_ONE_SHOT)
-	sig2.connect(_cb2, CONNECT_ONE_SHOT)
+	var cb1 = func(_a = null): done = true
+	var cb2 = func(): done = true
+	sig1.connect(cb1, CONNECT_ONE_SHOT)
+	sig2.connect(cb2, CONNECT_ONE_SHOT)
 	while not done:
 		await get_tree().process_frame
-	if sig1.is_connected(_cb1):
-		sig1.disconnect(_cb1)
-	if sig2.is_connected(_cb2):
-		sig2.disconnect(_cb2)
+	# Clean up remaining connections (one already fired as ONE_SHOT)
+	if sig1.is_connected(cb1):
+		sig1.disconnect(cb1)
+	# SceneTreeTimer may already be freed; guard with is_instance_valid
+	if sig2.get_object() != null and is_instance_valid(sig2.get_object()):
+		if sig2.is_connected(cb2):
+			sig2.disconnect(cb2)
 
 func _generate_decoration_data() -> void:
 	# Grass tufts

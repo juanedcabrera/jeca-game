@@ -8,7 +8,6 @@ var _sign_up_btn:    Button
 var _loading:        bool = false
 var _time:           float = 0.0
 var _title_label:    Label
-var _ui_layer:       CanvasLayer  # Separate layer for interactive controls (fixes touch input on iPad)
 
 # Animated elements
 var _cloud_positions: Array = []
@@ -32,10 +31,12 @@ func _ready() -> void:
 	_init_birds()
 	_build_scene()
 
-	# Give email input focus after scene is built
-	await get_tree().process_frame
-	if _email_input:
-		_email_input.grab_focus()
+	# On desktop, auto-focus email input; on web, let the user tap
+	# (mobile browsers require user gesture to open virtual keyboard)
+	if not OS.has_feature("web"):
+		await get_tree().process_frame
+		if _email_input:
+			_email_input.grab_focus()
 
 func _on_auth_changed(logged_in: bool) -> void:
 	if logged_in:
@@ -116,6 +117,7 @@ func _build_scene() -> void:
 	_title_label.position = Vector2(180, 38)
 	_title_label.size = Vector2(600, 60)
 	_title_label.z_index = 5
+	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_title_label)
 
 	# Title outline (second label behind, slightly offset for outline effect)
@@ -128,6 +130,7 @@ func _build_scene() -> void:
 		outline.position = Vector2(180 + offset.x * 2, 38 + offset.y * 2)
 		outline.size = Vector2(600, 60)
 		outline.z_index = 4
+		outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(outline)
 
 	# Card (wooden plank style)
@@ -135,15 +138,6 @@ func _build_scene() -> void:
 	card_drawer.position = Vector2(280, 118)
 	card_drawer.z_index = 3
 	add_child(card_drawer)
-
-	# CanvasLayer for interactive UI (fixes touch input on iPad/mobile)
-	_ui_layer = CanvasLayer.new()
-	_ui_layer.layer = 10
-	add_child(_ui_layer)
-	var ui_root = Control.new()
-	ui_root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	ui_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ui_layer.add_child(ui_root)
 
 	# Subtitle
 	var sub = Label.new()
@@ -157,21 +151,26 @@ func _build_scene() -> void:
 	sub.position = Vector2(280, 138)
 	sub.size = Vector2(400, 28)
 	sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui_root.add_child(sub)
+	sub.z_index = 5
+	add_child(sub)
 
 	# Email
 	var email_lbl = GameManager.make_label("Email:", Vector2(310, 182), 15, Color(0.9, 0.85, 0.65))
 	email_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui_root.add_child(email_lbl)
+	email_lbl.z_index = 5
+	add_child(email_lbl)
 	_email_input = _make_input("family@email.com", Vector2(310, 202), false)
-	ui_root.add_child(_email_input)
+	_email_input.z_index = 5
+	add_child(_email_input)
 
 	# Password
 	var pw_lbl = GameManager.make_label("Password:", Vector2(310, 256), 15, Color(0.9, 0.85, 0.65))
 	pw_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui_root.add_child(pw_lbl)
+	pw_lbl.z_index = 5
+	add_child(pw_lbl)
 	_password_input = _make_input("", Vector2(310, 276), true)
-	ui_root.add_child(_password_input)
+	_password_input.z_index = 5
+	add_child(_password_input)
 
 	# Status label (errors / success messages)
 	_status_label = Label.new()
@@ -182,19 +181,22 @@ func _build_scene() -> void:
 	_status_label.position = Vector2(280, 330)
 	_status_label.size = Vector2(400, 22)
 	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui_root.add_child(_status_label)
+	_status_label.z_index = 5
+	add_child(_status_label)
 
 	# Sign In button
 	_sign_in_btn = _make_wood_button("Sign In", Vector2(310, 356), Vector2(170, 48), Color(0.22, 0.52, 0.18))
 	_sign_in_btn.add_theme_font_size_override("font_size", 20)
 	_sign_in_btn.pressed.connect(_on_sign_in)
-	ui_root.add_child(_sign_in_btn)
+	_sign_in_btn.z_index = 5
+	add_child(_sign_in_btn)
 
 	# Create Account button
 	_sign_up_btn = _make_wood_button("Create Account", Vector2(500, 356), Vector2(170, 48), Color(0.25, 0.38, 0.58))
 	_sign_up_btn.add_theme_font_size_override("font_size", 17)
 	_sign_up_btn.pressed.connect(_on_sign_up)
-	ui_root.add_child(_sign_up_btn)
+	_sign_up_btn.z_index = 5
+	add_child(_sign_up_btn)
 
 	# Divider ("or")
 	var divider_left = ColorRect.new()
@@ -202,7 +204,8 @@ func _build_scene() -> void:
 	divider_left.size = Vector2(140, 1)
 	divider_left.position = Vector2(310, 418)
 	divider_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui_root.add_child(divider_left)
+	divider_left.z_index = 5
+	add_child(divider_left)
 
 	var or_label = Label.new()
 	or_label.text = "or"
@@ -212,20 +215,23 @@ func _build_scene() -> void:
 	or_label.position = Vector2(455, 408)
 	or_label.size = Vector2(50, 20)
 	or_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui_root.add_child(or_label)
+	or_label.z_index = 5
+	add_child(or_label)
 
 	var divider_right = ColorRect.new()
 	divider_right.color = Color(0.55, 0.45, 0.3, 0.5)
 	divider_right.size = Vector2(140, 1)
 	divider_right.position = Vector2(510, 418)
 	divider_right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui_root.add_child(divider_right)
+	divider_right.z_index = 5
+	add_child(divider_right)
 
 	# Google Sign In button
 	var google_btn = _make_wood_button("Sign in with Google", Vector2(340, 430), Vector2(280, 44), Color(0.55, 0.22, 0.18))
 	google_btn.add_theme_font_size_override("font_size", 17)
 	google_btn.pressed.connect(_on_google_sign_in)
-	ui_root.add_child(google_btn)
+	google_btn.z_index = 5
+	add_child(google_btn)
 
 func _make_input(placeholder: String, pos: Vector2, secret: bool) -> LineEdit:
 	var input = LineEdit.new()
