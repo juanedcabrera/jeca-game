@@ -8,6 +8,7 @@ var _sign_up_btn:    Button
 var _loading:        bool = false
 var _time:           float = 0.0
 var _title_label:    Label
+var _ui_layer:       CanvasLayer  # Separate layer for interactive controls (fixes touch input on iPad)
 
 # Animated elements
 var _cloud_positions: Array = []
@@ -135,6 +136,15 @@ func _build_scene() -> void:
 	card_drawer.z_index = 3
 	add_child(card_drawer)
 
+	# CanvasLayer for interactive UI (fixes touch input on iPad/mobile)
+	_ui_layer = CanvasLayer.new()
+	_ui_layer.layer = 10
+	add_child(_ui_layer)
+	var ui_root = Control.new()
+	ui_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ui_layer.add_child(ui_root)
+
 	# Subtitle
 	var sub = Label.new()
 	sub.text = "Sign in to play"
@@ -146,24 +156,22 @@ func _build_scene() -> void:
 	sub.add_theme_constant_override("shadow_offset_y", 1)
 	sub.position = Vector2(280, 138)
 	sub.size = Vector2(400, 28)
-	sub.z_index = 5
-	add_child(sub)
+	sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_root.add_child(sub)
 
 	# Email
 	var email_lbl = GameManager.make_label("Email:", Vector2(310, 182), 15, Color(0.9, 0.85, 0.65))
-	email_lbl.z_index = 5
-	add_child(email_lbl)
+	email_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_root.add_child(email_lbl)
 	_email_input = _make_input("family@email.com", Vector2(310, 202), false)
-	_email_input.z_index = 5
-	add_child(_email_input)
+	ui_root.add_child(_email_input)
 
 	# Password
 	var pw_lbl = GameManager.make_label("Password:", Vector2(310, 256), 15, Color(0.9, 0.85, 0.65))
-	pw_lbl.z_index = 5
-	add_child(pw_lbl)
+	pw_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_root.add_child(pw_lbl)
 	_password_input = _make_input("", Vector2(310, 276), true)
-	_password_input.z_index = 5
-	add_child(_password_input)
+	ui_root.add_child(_password_input)
 
 	# Status label (errors / success messages)
 	_status_label = Label.new()
@@ -173,30 +181,28 @@ func _build_scene() -> void:
 	_status_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3))
 	_status_label.position = Vector2(280, 330)
 	_status_label.size = Vector2(400, 22)
-	_status_label.z_index = 5
-	add_child(_status_label)
+	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_root.add_child(_status_label)
 
 	# Sign In button
 	_sign_in_btn = _make_wood_button("Sign In", Vector2(310, 356), Vector2(170, 48), Color(0.22, 0.52, 0.18))
 	_sign_in_btn.add_theme_font_size_override("font_size", 20)
 	_sign_in_btn.pressed.connect(_on_sign_in)
-	_sign_in_btn.z_index = 5
-	add_child(_sign_in_btn)
+	ui_root.add_child(_sign_in_btn)
 
 	# Create Account button
 	_sign_up_btn = _make_wood_button("Create Account", Vector2(500, 356), Vector2(170, 48), Color(0.25, 0.38, 0.58))
 	_sign_up_btn.add_theme_font_size_override("font_size", 17)
 	_sign_up_btn.pressed.connect(_on_sign_up)
-	_sign_up_btn.z_index = 5
-	add_child(_sign_up_btn)
+	ui_root.add_child(_sign_up_btn)
 
 	# Divider ("or")
 	var divider_left = ColorRect.new()
 	divider_left.color = Color(0.55, 0.45, 0.3, 0.5)
 	divider_left.size = Vector2(140, 1)
 	divider_left.position = Vector2(310, 418)
-	divider_left.z_index = 5
-	add_child(divider_left)
+	divider_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_root.add_child(divider_left)
 
 	var or_label = Label.new()
 	or_label.text = "or"
@@ -205,22 +211,21 @@ func _build_scene() -> void:
 	or_label.add_theme_color_override("font_color", Color(0.7, 0.65, 0.5))
 	or_label.position = Vector2(455, 408)
 	or_label.size = Vector2(50, 20)
-	or_label.z_index = 5
-	add_child(or_label)
+	or_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_root.add_child(or_label)
 
 	var divider_right = ColorRect.new()
 	divider_right.color = Color(0.55, 0.45, 0.3, 0.5)
 	divider_right.size = Vector2(140, 1)
 	divider_right.position = Vector2(510, 418)
-	divider_right.z_index = 5
-	add_child(divider_right)
+	divider_right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_root.add_child(divider_right)
 
 	# Google Sign In button
 	var google_btn = _make_wood_button("Sign in with Google", Vector2(340, 430), Vector2(280, 44), Color(0.55, 0.22, 0.18))
 	google_btn.add_theme_font_size_override("font_size", 17)
 	google_btn.pressed.connect(_on_google_sign_in)
-	google_btn.z_index = 5
-	add_child(google_btn)
+	ui_root.add_child(google_btn)
 
 func _make_input(placeholder: String, pos: Vector2, secret: bool) -> LineEdit:
 	var input = LineEdit.new()
@@ -231,6 +236,7 @@ func _make_input(placeholder: String, pos: Vector2, secret: bool) -> LineEdit:
 	input.secret = secret
 	input.mouse_filter = Control.MOUSE_FILTER_STOP
 	input.focus_mode = Control.FOCUS_ALL
+	input.virtual_keyboard_enabled = true
 
 	# Normal style - warm parchment with border
 	var style = StyleBoxFlat.new()

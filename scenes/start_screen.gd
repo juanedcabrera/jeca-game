@@ -23,10 +23,11 @@ var _star_phases: Array = []
 func _ready() -> void:
 	# If not logged in, check if OAuth callback is in progress
 	if not Supabase.is_logged_in:
-		if OS.has_feature("web") and str(JavaScriptBridge.eval("window.location.hash")).length() > 1:
+		var has_hash = OS.has_feature("web") and str(JavaScriptBridge.eval("window.location.hash")).length() > 1
+		if has_hash or Supabase.oauth_pending:
 			# OAuth callback in progress — wait for auth_changed with timeout
-			var timer = get_tree().create_timer(8.0)
-			var result = await _await_first(Supabase.auth_changed, timer.timeout)
+			var timer = get_tree().create_timer(10.0)
+			await _await_first(Supabase.auth_changed, timer.timeout)
 			if not Supabase.is_logged_in:
 				GameManager.change_scene("login_screen")
 				return

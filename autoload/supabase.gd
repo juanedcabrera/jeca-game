@@ -21,6 +21,7 @@ var _user_id:       String = ""
 var _user_email:    String = ""
 
 var is_logged_in: bool = false
+var oauth_pending: bool = false
 
 signal auth_changed(logged_in: bool)
 
@@ -110,12 +111,15 @@ func _check_oauth_callback() -> void:
 	# Apply session from OAuth tokens
 	_access_token  = params.get("access_token", "")
 	_refresh_token = params.get("refresh_token", "")
-
-	# Clean the URL hash immediately so it doesn't re-trigger on refresh
-	JavaScriptBridge.eval("history.replaceState(null, '', window.location.pathname)")
+	oauth_pending = true
 
 	# Fetch user info with the token
 	var user_result = await _http_get("/auth/v1/user")
+
+	# Clean the URL hash after the request (scenes check it to detect OAuth in progress)
+	JavaScriptBridge.eval("history.replaceState(null, '', window.location.pathname)")
+	oauth_pending = false
+
 	if user_result.has("id"):
 		_user_id    = user_result.get("id", "")
 		_user_email = user_result.get("email", "")

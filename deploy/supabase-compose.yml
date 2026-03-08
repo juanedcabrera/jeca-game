@@ -111,7 +111,13 @@ services:
       - "traefik.http.routers.supabase-auth.priority=100"
       - "traefik.http.services.supabase-auth.loadbalancer.server.port=9999"
       - "traefik.http.middlewares.supabase-auth-strip.stripprefix.prefixes=/auth/v1"
-      - "traefik.http.routers.supabase-auth.middlewares=supabase-auth-strip"
+      - "traefik.http.middlewares.supabase-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.supabase-cors.headers.accesscontrolalloworiginlist=*"
+      - "traefik.http.middlewares.supabase-cors.headers.accesscontrolallowheaders=authorization,apikey,content-type,x-client-info,accept,range"
+      - "traefik.http.middlewares.supabase-cors.headers.accesscontrolexposeheaders=x-total-count,link,x-supabase-api-version,content-range"
+      - "traefik.http.middlewares.supabase-cors.headers.accesscontrolmaxage=3600"
+      - "traefik.http.middlewares.supabase-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.supabase-auth.middlewares=supabase-cors,supabase-auth-strip"
     networks:
       - dokploy-network
       - default
@@ -137,7 +143,7 @@ services:
       - "traefik.http.routers.supabase-rest.priority=100"
       - "traefik.http.services.supabase-rest.loadbalancer.server.port=3000"
       - "traefik.http.middlewares.supabase-rest-strip.stripprefix.prefixes=/rest/v1"
-      - "traefik.http.routers.supabase-rest.middlewares=supabase-rest-strip"
+      - "traefik.http.routers.supabase-rest.middlewares=supabase-cors,supabase-rest-strip"
     networks:
       - dokploy-network
       - default
