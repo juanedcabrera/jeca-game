@@ -9,7 +9,7 @@ const _LOCAL_URL      = "http://127.0.0.1:54321"
 const _LOCAL_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 # Production (self-hosted)
 const _PROD_URL      = "https://supabase-cabreraharvest.juanedcabrera.com"
-const _PROD_ANON_KEY = "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3Mjk3MjgwMDAsICJleHAiOiAyMDQ1MDg4MDAwfQ.-OTW87dj2tf8aj1UvP3OjVWxk1gYEOPkkEXAtjgG-3E"
+const _PROD_ANON_KEY = "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3MDAwMDAwMDAsICJleHAiOiAxOTAwMDAwMDAwfQ.CCVNuv6FwTytccrVYDCjIL-ZBGNfk_zVMr6_pPFkQ5w"
 
 var SUPABASE_URL: String
 var SUPABASE_ANON_KEY: String
