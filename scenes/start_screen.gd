@@ -21,11 +21,12 @@ var _star_positions: Array = []
 var _star_phases: Array = []
 
 func _ready() -> void:
-	# If not logged in, wait briefly for OAuth callback before redirecting
+	# If not logged in, check if OAuth callback is in progress
 	if not Supabase.is_logged_in:
 		if OS.has_feature("web") and str(JavaScriptBridge.eval("window.location.hash")).length() > 1:
-			# OAuth callback in progress — wait for auth_changed signal
-			await Supabase.auth_changed
+			# OAuth callback in progress — wait for auth_changed with timeout
+			var timer = get_tree().create_timer(8.0)
+			var result = await _await_first(Supabase.auth_changed, timer.timeout)
 			if not Supabase.is_logged_in:
 				GameManager.change_scene("login_screen")
 				return
@@ -42,6 +43,20 @@ func _ready() -> void:
 	await Supabase.fetch_and_sync_slots()
 	_sync_label.visible = false
 	_build_slot_cards()
+
+## Await whichever signal fires first; returns when either completes.
+func _await_first(sig1: Signal, sig2: Signal) -> void:
+	var done = false
+	var _cb1 = func(_a = null): done = true
+	var _cb2 = func(): done = true
+	sig1.connect(_cb1, CONNECT_ONE_SHOT)
+	sig2.connect(_cb2, CONNECT_ONE_SHOT)
+	while not done:
+		await get_tree().process_frame
+	if sig1.is_connected(_cb1):
+		sig1.disconnect(_cb1)
+	if sig2.is_connected(_cb2):
+		sig2.disconnect(_cb2)
 
 func _generate_decoration_data() -> void:
 	# Grass tufts

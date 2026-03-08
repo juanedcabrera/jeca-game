@@ -111,6 +111,9 @@ func _check_oauth_callback() -> void:
 	_access_token  = params.get("access_token", "")
 	_refresh_token = params.get("refresh_token", "")
 
+	# Clean the URL hash immediately so it doesn't re-trigger on refresh
+	JavaScriptBridge.eval("history.replaceState(null, '', window.location.pathname)")
+
 	# Fetch user info with the token
 	var user_result = await _http_get("/auth/v1/user")
 	if user_result.has("id"):
@@ -119,9 +122,11 @@ func _check_oauth_callback() -> void:
 		is_logged_in = true
 		_save_session()
 		emit_signal("auth_changed", true)
-
-	# Clean the URL hash so it doesn't re-trigger on refresh
-	JavaScriptBridge.eval("history.replaceState(null, '', window.location.pathname)")
+	else:
+		# OAuth failed — still emit so listeners don't hang forever
+		_access_token = ""
+		_refresh_token = ""
+		emit_signal("auth_changed", false)
 
 # ── Database ──────────────────────────────────────────────────────────────────
 

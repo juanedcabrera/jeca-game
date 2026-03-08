@@ -16,12 +16,29 @@ var _fireflies: Array = []  # [{pos, speed, phase, alpha}]
 var _birds: Array = []      # [{pos, speed, wing_phase}]
 
 func _ready() -> void:
+	# If already logged in (e.g., session restored), skip to start screen
+	if Supabase.is_logged_in:
+		GameManager.change_scene("start_screen")
+		return
+
+	# Listen for OAuth completion (Google sign-in redirects back here)
+	Supabase.auth_changed.connect(_on_auth_changed)
+
 	# Seed RNG for varied decorations
 	randomize()
 	_init_fireflies()
 	_init_clouds()
 	_init_birds()
 	_build_scene()
+
+	# Give email input focus after scene is built
+	await get_tree().process_frame
+	if _email_input:
+		_email_input.grab_focus()
+
+func _on_auth_changed(logged_in: bool) -> void:
+	if logged_in:
+		GameManager.change_scene("start_screen")
 
 func _init_fireflies() -> void:
 	for i in range(18):
@@ -212,6 +229,8 @@ func _make_input(placeholder: String, pos: Vector2, secret: bool) -> LineEdit:
 	input.size = Vector2(340, 44)
 	input.add_theme_font_size_override("font_size", 20)
 	input.secret = secret
+	input.mouse_filter = Control.MOUSE_FILTER_STOP
+	input.focus_mode = Control.FOCUS_ALL
 
 	# Normal style - warm parchment with border
 	var style = StyleBoxFlat.new()
@@ -253,6 +272,8 @@ func _make_wood_button(text: String, pos: Vector2, sz: Vector2, base_color: Colo
 	btn.text = text
 	btn.position = pos
 	btn.size = sz
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	btn.focus_mode = Control.FOCUS_ALL
 
 	# Normal style - wood grain feel
 	var normal = StyleBoxFlat.new()

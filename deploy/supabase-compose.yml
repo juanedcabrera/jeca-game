@@ -1,13 +1,7 @@
-# Minimal self-hosted Supabase for Cabrera Harvest
-# Paste this into Dokploy as a Compose service
-# Set environment variables in Dokploy's env panel (see deploy/supabase.env.example)
-
 services:
   db:
     image: supabase/postgres:15.6.1.145
     restart: unless-stopped
-    ports:
-      - "5432"
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: postgres
@@ -21,9 +15,69 @@ services:
       timeout: 5s
       retries: 5
 
+  db-init:
+    image: alpine:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache postgresql-client > /dev/null 2>&1
+        PGPASSWORD=$${POSTGRES_PASSWORD} psql -h db -U supabase_admin -d postgres \
+          -c "ALTER ROLE supabase_auth_admin WITH PASSWORD '$${POSTGRES_PASSWORD}';" \
+          -c "ALTER ROLE authenticator WITH PASSWORD '$${POSTGRES_PASSWORD}';" \
+          -c "GRANT ALL ON SCHEMA auth TO supabase_auth_admin;" \
+          -c "ALTER SCHEMA auth OWNER TO supabase_auth_admin;"
+        echo "=== Running save_slots migration ==="
+        PGPASSWORD=$${POSTGRES_PASSWORD} psql -h db -U supabase_admin -d postgres <<'SQL'
+        CREATE TABLE IF NOT EXISTS public.save_slots (
+            id                    uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id               uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+            slot_number           int         NOT NULL CHECK (slot_number BETWEEN 0 AND 2),
+            player_name           text        NOT NULL DEFAULT 'Friend',
+            player_gender         text        NOT NULL DEFAULT 'boy',
+            coins                 int         NOT NULL DEFAULT 10,
+            day                   int         NOT NULL DEFAULT 1,
+            inventory             jsonb       NOT NULL DEFAULT '{}',
+            farm_tiles            jsonb       NOT NULL DEFAULT '[]',
+            animals               jsonb       NOT NULL DEFAULT '[]',
+            math_problems_solved  int         NOT NULL DEFAULT 0,
+            words_read            int         NOT NULL DEFAULT 0,
+            intro_seen            boolean     NOT NULL DEFAULT false,
+            updated_at            timestamptz NOT NULL DEFAULT now(),
+            UNIQUE (user_id, slot_number)
+        );
+        CREATE OR REPLACE FUNCTION public.set_updated_at()
+        RETURNS TRIGGER LANGUAGE plpgsql AS $fn$
+        BEGIN
+            NEW.updated_at = now();
+            RETURN NEW;
+        END;
+        $fn$;
+        DROP TRIGGER IF EXISTS save_slots_updated_at ON public.save_slots;
+        CREATE TRIGGER save_slots_updated_at
+            BEFORE UPDATE ON public.save_slots
+            FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+        ALTER TABLE public.save_slots ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "Users manage own saves" ON public.save_slots;
+        CREATE POLICY "Users manage own saves"
+            ON public.save_slots
+            FOR ALL
+            USING  (auth.uid() = user_id)
+            WITH CHECK (auth.uid() = user_id);
+        GRANT ALL ON public.save_slots TO authenticated;
+        GRANT ALL ON public.save_slots TO anon;
+        GRANT ALL ON public.save_slots TO service_role;
+        SQL
+        echo "=== Migration complete ==="
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
   auth:
     image: supabase/gotrue:v2.164.0
-    restart: unless-stopped
+    restart: always
     depends_on:
       db:
         condition: service_healthy
@@ -32,21 +86,35 @@ services:
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_DB_DATABASE_URL: ${AUTH_DATABASE_URL}
+      DATABASE_URL: ${AUTH_DATABASE_URL}
       GOTRUE_SITE_URL: ${SITE_URL}
       GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-}
       GOTRUE_DISABLE_SIGNUP: "false"
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
       GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMS_AUTOCONFIRM: "false"
       GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${ENABLE_GOOGLE_AUTH:-false}
       GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
-    ports:
-      - "9999"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.supabase-auth.rule=Host(`supabase-cabreraharvest.juanedcabrera.com`) && PathPrefix(`/auth/v1`)"
+      - "traefik.http.routers.supabase-auth.entrypoints=web"
+      - "traefik.http.routers.supabase-auth.priority=100"
+      - "traefik.http.services.supabase-auth.loadbalancer.server.port=9999"
+      - "traefik.http.middlewares.supabase-auth-strip.stripprefix.prefixes=/auth/v1"
+      - "traefik.http.routers.supabase-auth.middlewares=supabase-auth-strip"
+    networks:
+      - dokploy-network
+      - default
 
   rest:
     image: postgrest/postgrest:v12.2.3
@@ -55,33 +123,28 @@ services:
       db:
         condition: service_healthy
     environment:
-      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_URI: ${REST_DATABASE_URL}
       PGRST_DB_SCHEMAS: public,storage,graphql_public
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: 3600
-    ports:
-      - "3000"
-
-  kong:
-    image: kong:2.8.1
-    restart: unless-stopped
-    depends_on:
-      - auth
-      - rest
-    ports:
-      - "8000:8000"
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
-      KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
-      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
-      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-    volumes:
-      - ./volumes/kong/kong.yml:/var/lib/kong/kong.yml:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.supabase-rest.rule=Host(`supabase-cabreraharvest.juanedcabrera.com`) && PathPrefix(`/rest/v1`)"
+      - "traefik.http.routers.supabase-rest.entrypoints=web"
+      - "traefik.http.routers.supabase-rest.priority=100"
+      - "traefik.http.services.supabase-rest.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.supabase-rest-strip.stripprefix.prefixes=/rest/v1"
+      - "traefik.http.routers.supabase-rest.middlewares=supabase-rest-strip"
+    networks:
+      - dokploy-network
+      - default
 
 volumes:
   supabase-db:
+
+networks:
+  dokploy-network:
+    external: true
