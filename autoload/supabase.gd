@@ -150,8 +150,13 @@ func push_slot(slot: int, data: Dictionary) -> bool:
 		"farm_tiles":           data.get("farm_tiles", []),
 		"animals":              data.get("animals", []),
 		"math_problems_solved": data.get("math_problems_solved", 0),
+		"math_addition_solved": data.get("math_addition_solved", 0),
+		"math_subtraction_solved": data.get("math_subtraction_solved", 0),
+		"math_multiplication_solved": data.get("math_multiplication_solved", 0),
+		"math_division_solved": data.get("math_division_solved", 0),
 		"words_read":           data.get("words_read", 0),
 		"intro_seen":           data.get("intro_seen", false),
+		"player_age":           data.get("player_age", 0),
 	}
 	var result = await _post(
 		"/rest/v1/save_slots",
@@ -197,8 +202,13 @@ func fetch_and_sync_slots() -> bool:
 			"animals":              row.get("animals", []),
 			"day":                  row.get("day", 1),
 			"math_problems_solved": row.get("math_problems_solved", 0),
+			"math_addition_solved": row.get("math_addition_solved", 0),
+			"math_subtraction_solved": row.get("math_subtraction_solved", 0),
+			"math_multiplication_solved": row.get("math_multiplication_solved", 0),
+			"math_division_solved": row.get("math_division_solved", 0),
 			"words_read":           row.get("words_read", 0),
 			"intro_seen":           row.get("intro_seen", false),
+			"player_age":           row.get("player_age", 0),
 		}
 		var file = FileAccess.open("user://cabrera_save_%d.json" % slot, FileAccess.WRITE)
 		if file:

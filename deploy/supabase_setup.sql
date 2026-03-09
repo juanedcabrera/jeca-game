@@ -16,12 +16,33 @@ CREATE TABLE IF NOT EXISTS public.save_slots (
     farm_tiles            jsonb       NOT NULL DEFAULT '[]',
     animals               jsonb       NOT NULL DEFAULT '[]',
     math_problems_solved  int         NOT NULL DEFAULT 0,
+    math_addition_solved  int         NOT NULL DEFAULT 0,
+    math_subtraction_solved int       NOT NULL DEFAULT 0,
+    math_multiplication_solved int    NOT NULL DEFAULT 0,
+    math_division_solved  int         NOT NULL DEFAULT 0,
     words_read            int         NOT NULL DEFAULT 0,
     intro_seen            boolean     NOT NULL DEFAULT false,
+    player_age            int         NOT NULL DEFAULT 0,
     updated_at            timestamptz NOT NULL DEFAULT now(),
 
     UNIQUE (user_id, slot_number)
 );
+
+-- 1b. Migration: add new columns for existing databases
+ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS player_age int NOT NULL DEFAULT 0;
+ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS math_addition_solved int NOT NULL DEFAULT 0;
+ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS math_subtraction_solved int NOT NULL DEFAULT 0;
+ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS math_multiplication_solved int NOT NULL DEFAULT 0;
+ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS math_division_solved int NOT NULL DEFAULT 0;
+
+-- Migrate legacy data: credit existing math_problems_solved to addition
+UPDATE public.save_slots
+SET math_addition_solved = math_problems_solved
+WHERE math_problems_solved > 0
+  AND math_addition_solved = 0
+  AND math_subtraction_solved = 0
+  AND math_multiplication_solved = 0
+  AND math_division_solved = 0;
 
 -- 2. Auto-update updated_at on every write
 CREATE OR REPLACE FUNCTION public.set_updated_at()

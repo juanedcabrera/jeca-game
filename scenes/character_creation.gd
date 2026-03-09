@@ -1,6 +1,8 @@
 extends Node2D
 
 var _selected_gender: String = "boy"
+var _selected_age: int = 6
+var _age_label: Label
 var _name_input: LineEdit
 var _preview_node: Node2D
 var _boy_btn: Button
@@ -70,7 +72,7 @@ func _setup_html_inputs() -> void:
 		inp.autocapitalize = 'words';
 		inp.autocorrect = 'off';
 		inp.spellcheck = false;
-		var m = mapRect(220, 255, 310, 48);
+		var m = mapRect(220, 343, 310, 48);
 		inp.style.cssText = 'position:fixed;z-index:9999;box-sizing:border-box;'
 			+ 'left:' + m.left + 'px;top:' + m.top + 'px;'
 			+ 'width:' + m.width + 'px;height:' + m.height + 'px;'
@@ -84,7 +86,7 @@ func _setup_html_inputs() -> void:
 		window._godotCharNameResize = function() {
 			var el = document.getElementById('godot-charname');
 			if (!el) return;
-			var m = mapRect(220, 255, 310, 48);
+			var m = mapRect(220, 343, 310, 48);
 			el.style.left = m.left + 'px';
 			el.style.top = m.top + 'px';
 			el.style.width = m.width + 'px';
@@ -151,14 +153,14 @@ func _build_scene() -> void:
 	# Main panel
 	var panel = ColorRect.new()
 	panel.color = Color(0.93, 0.85, 0.68)
-	panel.size = Vector2(600, 380)
+	panel.size = Vector2(600, 450)
 	panel.position = Vector2(180, 90)
 	add_child(panel)
 
 	# Panel border
 	var border = ColorRect.new()
 	border.color = Color(0.55, 0.35, 0.15)
-	border.size = Vector2(606, 386)
+	border.size = Vector2(606, 456)
 	border.position = Vector2(177, 87)
 	add_child(border)
 	add_child(panel)  # Re-add on top of border
@@ -183,14 +185,39 @@ func _build_scene() -> void:
 	_girl_btn.pressed.connect(func(): _select_gender("girl"))
 	add_child(_girl_btn)
 
+	# Age picker label
+	var age_lbl = GameManager.make_label("How old are you?", Vector2(220, 210), 22, Color(0.3, 0.1, 0.0))
+	add_child(age_lbl)
+
+	# Age picker: left arrow
+	var age_left = GameManager.make_button("<", Vector2(220, 245), Vector2(60, 52), Color(0.2, 0.45, 0.75))
+	age_left.pressed.connect(func(): _change_age(-1))
+	add_child(age_left)
+
+	# Age picker: display label
+	_age_label = Label.new()
+	_age_label.text = str(_selected_age)
+	_age_label.position = Vector2(290, 245)
+	_age_label.size = Vector2(100, 52)
+	_age_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_age_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_age_label.add_theme_font_size_override("font_size", 36)
+	_age_label.add_theme_color_override("font_color", Color(0.15, 0.05, 0.0))
+	add_child(_age_label)
+
+	# Age picker: right arrow
+	var age_right = GameManager.make_button(">", Vector2(400, 245), Vector2(60, 52), Color(0.2, 0.45, 0.75))
+	age_right.pressed.connect(func(): _change_age(1))
+	add_child(age_right)
+
 	# Name label
-	var name_lbl = GameManager.make_label("Your Name:", Vector2(220, 222), 22, Color(0.3, 0.1, 0.0))
+	var name_lbl = GameManager.make_label("Your Name:", Vector2(220, 310), 22, Color(0.3, 0.1, 0.0))
 	add_child(name_lbl)
 
 	# Name input
 	_name_input = LineEdit.new()
 	_name_input.placeholder_text = "Enter your name..."
-	_name_input.position = Vector2(220, 255)
+	_name_input.position = Vector2(220, 343)
 	_name_input.size = Vector2(310, 48)
 	_name_input.add_theme_font_size_override("font_size", 22)
 	_name_input.max_length = 14
@@ -210,7 +237,7 @@ func _build_scene() -> void:
 	add_child(_name_input)
 
 	# Start button
-	var start_btn = GameManager.make_button("Begin Your Adventure!", Vector2(210, 330), Vector2(360, 60), Color(0.15, 0.5, 0.15))
+	var start_btn = GameManager.make_button("Begin Your Adventure!", Vector2(210, 418), Vector2(360, 60), Color(0.15, 0.5, 0.15))
 	start_btn.add_theme_font_size_override("font_size", 24)
 	start_btn.pressed.connect(_on_start_pressed)
 	add_child(start_btn)
@@ -221,7 +248,7 @@ func _build_scene() -> void:
 	add_child(deco)
 
 	# Hint text
-	var hint = GameManager.make_label("You will farm, learn, and grow!", Vector2(220, 410), 17, Color(0.4, 0.2, 0.05))
+	var hint = GameManager.make_label("You will farm, learn, and grow!", Vector2(220, 498), 17, Color(0.4, 0.2, 0.05))
 	add_child(hint)
 
 	_update_gender_buttons()
@@ -251,6 +278,11 @@ func _update_gender_buttons() -> void:
 	_boy_btn.add_theme_stylebox_override("normal", boy_style)
 	_girl_btn.add_theme_stylebox_override("normal", girl_style)
 
+func _change_age(delta: int) -> void:
+	_selected_age = clampi(_selected_age + delta, 4, 12)
+	if _age_label:
+		_age_label.text = str(_selected_age)
+
 func _on_start_pressed() -> void:
 	var name_val = _name_input.text.strip_edges()
 	if name_val.length() == 0:
@@ -258,6 +290,7 @@ func _on_start_pressed() -> void:
 	_remove_html_inputs()
 	PlayerData.player_name = name_val
 	PlayerData.player_gender = _selected_gender
+	PlayerData.player_age = _selected_age
 	PlayerData.game_started = true
 	PlayerData._init_farm_tiles()
 	PlayerData.save_game()  # Write initial save to the chosen slot

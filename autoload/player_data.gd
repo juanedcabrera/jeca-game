@@ -32,9 +32,16 @@ var animals_tended_today: bool = false
 # Progress
 var day: int = 1
 var math_problems_solved: int = 0
+var math_addition_solved: int = 0
+var math_subtraction_solved: int = 0
+var math_multiplication_solved: int = 0
+var math_division_solved: int = 0
 var words_read: int = 0
 var game_started: bool = false
 var intro_seen: bool = false
+
+# Player profile
+var player_age: int = 0
 
 signal coins_changed(new_amount: int)
 signal inventory_changed()
@@ -72,9 +79,14 @@ func reset() -> void:
 	animals_tended_today = false
 	day = 1
 	math_problems_solved = 0
+	math_addition_solved = 0
+	math_subtraction_solved = 0
+	math_multiplication_solved = 0
+	math_division_solved = 0
 	words_read = 0
 	game_started = false
 	intro_seen = false
+	player_age = 0
 	_init_farm_tiles()
 
 # ── Economy ───────────────────────────────────────────────────────────────────
@@ -185,9 +197,14 @@ func save_game() -> void:
 		"animals": animals,
 		"day": day,
 		"math_problems_solved": math_problems_solved,
+		"math_addition_solved": math_addition_solved,
+		"math_subtraction_solved": math_subtraction_solved,
+		"math_multiplication_solved": math_multiplication_solved,
+		"math_division_solved": math_division_solved,
 		"words_read": words_read,
 		"intro_seen": intro_seen,
 		"animals_tended_today": animals_tended_today,
+		"player_age": player_age,
 	}
 	# Local save (instant, works offline)
 	var file = FileAccess.open(_slot_path(current_slot), FileAccess.WRITE)
@@ -220,9 +237,20 @@ func load_slot(slot: int) -> bool:
 	animals = data.get("animals", [])
 	day = data.get("day", 1)
 	math_problems_solved = data.get("math_problems_solved", 0)
+	math_addition_solved = data.get("math_addition_solved", 0)
+	math_subtraction_solved = data.get("math_subtraction_solved", 0)
+	math_multiplication_solved = data.get("math_multiplication_solved", 0)
+	math_division_solved = data.get("math_division_solved", 0)
 	words_read = data.get("words_read", 0)
 	intro_seen = data.get("intro_seen", false)
 	animals_tended_today = data.get("animals_tended_today", false)
+	player_age = data.get("player_age", 0)
+	# Migration: if per-type math counters are all zero but legacy total > 0,
+	# credit all legacy progress to addition (the only type that existed before).
+	if math_addition_solved == 0 and math_subtraction_solved == 0 \
+			and math_multiplication_solved == 0 and math_division_solved == 0 \
+			and math_problems_solved > 0:
+		math_addition_solved = math_problems_solved
 	game_started = true
 	return true
 
