@@ -501,7 +501,9 @@ func _update_action_popup() -> void:
 				else:
 					_action_label.text = "[E] Select seeds to plant"
 			"planted":
-				if tile["watered"]:
+				if tile["watered"] and PlayerData.has_item("fertilizer"):
+					_action_label.text = "[E] Use Fertilizer (+1 growth)"
+				elif tile["watered"]:
 					_action_label.text = "Already watered today!"
 				else:
 					_action_label.text = "[E] Water this crop"
@@ -548,7 +550,15 @@ func _interact_with_tile(idx: int) -> void:
 			else:
 				GameManager.show_message(self, "Select your seeds first! (Keys 3-5)", 1.8)
 		"planted":
-			if _current_tool == "water_jug" or PlayerData.has_item("water_jug"):
+			if tile["watered"] and PlayerData.has_item("fertilizer"):
+				# Fertilizer: boost growth by 1 (consumed)
+				PlayerData.use_item("fertilizer")
+				tile["growth"] += 1
+				if tile["growth"] >= tile["max_growth"]:
+					tile["state"] = "ready"
+				_refresh_tile_drawer(idx)
+				GameManager.show_message(self, "Fertilized! Growth boosted! 🌱", 1.5)
+			elif _current_tool == "water_jug" or PlayerData.has_item("water_jug"):
 				if PlayerData.water_tile(idx):
 					_refresh_tile_drawer(idx)
 					GameManager.show_message(self, "Watered! 💧 Come back tomorrow.", 1.5)
@@ -592,13 +602,17 @@ func _tend_animals() -> void:
 	GameManager.show_message(self, "Fed & watered! +%d coins 🥣💧" % (PlayerData.animals.size() * 2), 2.0)
 
 func _advance_day() -> void:
+	var had_sprinkler = PlayerData.has_item("sprinkler")
 	PlayerData.advance_day()
 	PlayerData.save_game()
 	_refresh_hud()
 	# Refresh all tile drawers
 	for td in _farm_tile_drawers:
 		td.queue_redraw()
-	GameManager.show_message(self, "💤 Good night! Day %d begins." % PlayerData.day, 2.5)
+	if had_sprinkler:
+		GameManager.show_message(self, "💤 Day %d! Sprinkler watered all crops! 💦" % PlayerData.day, 2.5)
+	else:
+		GameManager.show_message(self, "💤 Good night! Day %d begins." % PlayerData.day, 2.5)
 
 
 # ── Tile Drawer ────────────────────────────────────────────────────────────────

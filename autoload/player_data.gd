@@ -125,6 +125,11 @@ func get_item_count(item_id: String) -> int:
 func advance_day() -> void:
 	day += 1
 	animals_tended_today = false
+	# Sprinkler: auto-water all planted crops at start of new day
+	if has_item("sprinkler"):
+		for tile in farm_tiles:
+			if tile["state"] == "planted":
+				tile["watered"] = true
 	# Grow all planted crops
 	for tile in farm_tiles:
 		if tile["state"] == "planted":
