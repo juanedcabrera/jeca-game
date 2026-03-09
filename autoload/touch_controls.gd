@@ -3,6 +3,11 @@ extends Node
 ## TouchControls — Autoload singleton for on-screen touch controls.
 ## Only visible on web builds. Renders via _draw() on a CanvasLayer (layer 99).
 ##
+## On iPad Safari, Godot's _input() may never receive touch events because the
+## browser intercepts them for scrolling/zooming. We bypass this entirely by
+## attaching JavaScript touch listeners directly on the canvas element with
+## preventDefault(), then polling the touch state from GDScript each frame.
+##
 ## Usage from any scene:
 ##   var move = TouchControls.get_movement_vector()
 ##   if TouchControls.is_action_just_pressed(): ...
@@ -52,24 +57,29 @@ var _draw_node: Control
 var _enabled := false
 
 # D-pad tracking
-var _dpad_touch_index: int = -1
+var _dpad_touch_id: int = -1
 var _dpad_vector := Vector2.ZERO
 var _dpad_knob_pos := Vector2.ZERO  # visual knob offset from center
 
 # Action button
-var _action_touch_index: int = -1
+var _action_touch_id: int = -1
 var _action_pressed := false
 var _action_just_pressed := false
 
 # Pause button
-var _pause_touch_index: int = -1
+var _pause_touch_id: int = -1
 var _pause_pressed := false
 var _pause_just_pressed := false
 
 # Inventory button
-var _inv_touch_index: int = -1
+var _inv_touch_id: int = -1
 var _inv_pressed := false
 var _inv_just_pressed := false
+
+# Previous frame's touch IDs for detecting "just pressed"
+var _prev_action_ids: Array = []
+var _prev_pause_ids: Array = []
+var _prev_inv_ids: Array = []
 
 # ── Lifecycle ────────────────────────────────────────────────────────────────
 
@@ -88,7 +98,7 @@ func _ready() -> void:
 	_canvas_layer.name = "TouchControlsLayer"
 	add_child(_canvas_layer)
 
-	# Create a Control that handles drawing and input
+	# Create a Control that handles drawing
 	_draw_node = Control.new()
 	_draw_node.name = "TouchDraw"
 	_draw_node.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -97,28 +107,15 @@ func _ready() -> void:
 	_draw_node.connect("draw", _on_draw)
 	_canvas_layer.add_child(_draw_node)
 
+	# Set up JavaScript touch listeners on the canvas
+	_setup_js_touch_listeners()
+
 func _process(_delta: float) -> void:
 	if not _enabled:
 		return
-	# Clear "just pressed" flags each frame (they last exactly one frame)
-	_action_just_pressed = false
-	_pause_just_pressed = false
-	_inv_just_pressed = false
+	# Poll JavaScript for current touch state
+	_poll_js_touches()
 	_draw_node.queue_redraw()
-
-func _input(event: InputEvent) -> void:
-	if not _enabled:
-		return
-
-	if event is InputEventScreenTouch:
-		_handle_touch(event)
-	elif event is InputEventScreenDrag:
-		_handle_drag(event)
-	# Fallback: iPad Safari / Godot web emits mouse events instead of touch events
-	elif event is InputEventMouseButton:
-		_handle_mouse_button(event)
-	elif event is InputEventMouseMotion:
-		_handle_mouse_motion(event)
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
@@ -162,110 +159,177 @@ func hide_controls() -> void:
 	if _draw_node:
 		_draw_node.visible = false
 
-# ── Input handling ───────────────────────────────────────────────────────────
+# ── JavaScript touch capture ────────────────────────────────────────────────
+# iPad Safari intercepts touch events for scrolling/zooming before Godot can
+# see them. We attach our own listeners with {passive:false} + preventDefault()
+# directly on the canvas, then poll the state each frame from GDScript.
 
-func _viewport_pos(screen_pos: Vector2) -> Vector2:
-	## Convert screen (pixel) coordinates to viewport coordinates,
-	## accounting for canvas_items stretch mode.
-	var vp := get_viewport()
-	if vp == null:
-		return screen_pos
-	var vp_size := vp.get_visible_rect().size
-	var win_size := Vector2(DisplayServer.window_get_size())
-	if win_size.x == 0 or win_size.y == 0:
-		return screen_pos
-	return screen_pos * (vp_size / win_size)
+func _setup_js_touch_listeners() -> void:
+	JavaScriptBridge.eval("""
+	(function() {
+		var canvas = document.querySelector('canvas');
+		if (!canvas) return;
 
-func _handle_touch(event: InputEventScreenTouch) -> void:
-	var pos := _viewport_pos(event.position)
+		// Prevent browser default touch behaviors (scroll, zoom, etc.)
+		canvas.style.touchAction = 'none';
+		canvas.style.webkitTouchCallout = 'none';
+		canvas.style.webkitUserSelect = 'none';
 
-	if event.pressed:
-		# Check which control region was touched
-		if _is_in_dpad(pos) and _dpad_touch_index == -1:
-			_dpad_touch_index = event.index
-			_update_dpad(pos)
-		elif _is_in_circle(pos, ACTION_CENTER, ACTION_RADIUS + 15.0) and _action_touch_index == -1:
-			_action_touch_index = event.index
-			_action_pressed = true
-			_action_just_pressed = true
-		elif _is_in_circle(pos, PAUSE_CENTER, PAUSE_RADIUS + 10.0) and _pause_touch_index == -1:
-			_pause_touch_index = event.index
-			_pause_pressed = true
-			_pause_just_pressed = true
-		elif _is_in_circle(pos, INV_CENTER, INV_RADIUS + 10.0) and _inv_touch_index == -1:
-			_inv_touch_index = event.index
-			_inv_pressed = true
-			_inv_just_pressed = true
-	else:
-		# Touch released — clear the matching control
-		if event.index == _dpad_touch_index:
-			_dpad_touch_index = -1
+		// State: array of {id, x, y} in viewport coords (960x540)
+		window._godotTouches = [];
+
+		function toViewport(clientX, clientY) {
+			var cr = canvas.getBoundingClientRect();
+			var gameAspect = 960 / 540;
+			var canvasAspect = cr.width / cr.height;
+			var ox = 0, oy = 0, s = 1;
+			if (canvasAspect > gameAspect) {
+				s = cr.height / 540;
+				ox = (cr.width - 960 * s) / 2;
+			} else {
+				s = cr.width / 960;
+				oy = (cr.height - 540 * s) / 2;
+			}
+			return {
+				x: (clientX - cr.left - ox) / s,
+				y: (clientY - cr.top - oy) / s
+			};
+		}
+
+		function updateTouches(e) {
+			e.preventDefault();
+			var arr = [];
+			for (var i = 0; i < e.touches.length; i++) {
+				var t = e.touches[i];
+				var vp = toViewport(t.clientX, t.clientY);
+				arr.push(t.identifier + ':' + vp.x.toFixed(1) + ',' + vp.y.toFixed(1));
+			}
+			window._godotTouches = arr.join(';');
+		}
+
+		canvas.addEventListener('touchstart', updateTouches, {passive: false});
+		canvas.addEventListener('touchmove', updateTouches, {passive: false});
+		canvas.addEventListener('touchend', updateTouches, {passive: false});
+		canvas.addEventListener('touchcancel', updateTouches, {passive: false});
+
+		// Also handle mouse events (for desktop testing)
+		var mouseDown = false;
+		canvas.addEventListener('mousedown', function(e) {
+			mouseDown = true;
+			var vp = toViewport(e.clientX, e.clientY);
+			window._godotTouches = '-1:' + vp.x.toFixed(1) + ',' + vp.y.toFixed(1);
+		});
+		canvas.addEventListener('mousemove', function(e) {
+			if (!mouseDown) return;
+			var vp = toViewport(e.clientX, e.clientY);
+			window._godotTouches = '-1:' + vp.x.toFixed(1) + ',' + vp.y.toFixed(1);
+		});
+		canvas.addEventListener('mouseup', function(e) {
+			mouseDown = false;
+			window._godotTouches = '';
+		});
+	})();
+	""")
+
+func _poll_js_touches() -> void:
+	var raw = JavaScriptBridge.eval("window._godotTouches || ''")
+	if raw == null:
+		raw = ""
+	var state_str: String = str(raw)
+
+	# Parse touches: "id:x,y;id:x,y;..."
+	var touches: Array = []  # Array of {id: int, pos: Vector2}
+	if state_str.length() > 0:
+		var parts = state_str.split(";")
+		for part in parts:
+			if part.length() == 0:
+				continue
+			var id_and_pos = part.split(":")
+			if id_and_pos.size() != 2:
+				continue
+			var tid = int(id_and_pos[0])
+			var coords = id_and_pos[1].split(",")
+			if coords.size() != 2:
+				continue
+			var pos = Vector2(float(coords[0]), float(coords[1]))
+			touches.append({"id": tid, "pos": pos})
+
+	# Track which touch IDs are active this frame
+	var active_ids: Array = []
+	for t in touches:
+		active_ids.append(t["id"])
+
+	# ── D-pad processing ──
+	if _dpad_touch_id != -1:
+		# Check if our tracked touch is still active
+		var found := false
+		for t in touches:
+			if t["id"] == _dpad_touch_id:
+				_update_dpad(t["pos"])
+				found = true
+				break
+		if not found:
+			# Touch released
+			_dpad_touch_id = -1
 			_dpad_vector = Vector2.ZERO
 			_dpad_knob_pos = Vector2.ZERO
-		if event.index == _action_touch_index:
-			_action_touch_index = -1
-			_action_pressed = false
-		if event.index == _pause_touch_index:
-			_pause_touch_index = -1
-			_pause_pressed = false
-		if event.index == _inv_touch_index:
-			_inv_touch_index = -1
-			_inv_pressed = false
 
-func _handle_drag(event: InputEventScreenDrag) -> void:
-	if event.index == _dpad_touch_index:
-		var pos := _viewport_pos(event.position)
-		_update_dpad(pos)
+	# ── Action button processing ──
+	var cur_action_ids: Array = []
+	for t in touches:
+		if _is_in_circle(t["pos"], ACTION_CENTER, ACTION_RADIUS + 15.0):
+			cur_action_ids.append(t["id"])
 
-# ── Mouse event fallback (iPad Safari / web) ────────────────────────────────
-# Godot web export on iPad may only emit mouse events for touches.
-# We use touch index -2 to distinguish mouse-based input from real multi-touch.
-
-const MOUSE_TOUCH_INDEX := -2
-
-func _handle_mouse_button(event: InputEventMouseButton) -> void:
-	if event.button_index != MOUSE_BUTTON_LEFT:
-		return
-	var pos := _viewport_pos(event.position)
-
-	if event.pressed:
-		# Check which control region was pressed
-		if _is_in_dpad(pos) and _dpad_touch_index == -1:
-			_dpad_touch_index = MOUSE_TOUCH_INDEX
-			_update_dpad(pos)
-		elif _is_in_circle(pos, ACTION_CENTER, ACTION_RADIUS + 15.0) and _action_touch_index == -1:
-			_action_touch_index = MOUSE_TOUCH_INDEX
-			_action_pressed = true
+	_action_pressed = cur_action_ids.size() > 0
+	# "Just pressed" = new touch ID appeared in action area this frame
+	_action_just_pressed = false
+	for tid in cur_action_ids:
+		if tid not in _prev_action_ids:
 			_action_just_pressed = true
-		elif _is_in_circle(pos, PAUSE_CENTER, PAUSE_RADIUS + 10.0) and _pause_touch_index == -1:
-			_pause_touch_index = MOUSE_TOUCH_INDEX
-			_pause_pressed = true
-			_pause_just_pressed = true
-		elif _is_in_circle(pos, INV_CENTER, INV_RADIUS + 10.0) and _inv_touch_index == -1:
-			_inv_touch_index = MOUSE_TOUCH_INDEX
-			_inv_pressed = true
-			_inv_just_pressed = true
-	else:
-		# Mouse released — clear any control using MOUSE_TOUCH_INDEX
-		if _dpad_touch_index == MOUSE_TOUCH_INDEX:
-			_dpad_touch_index = -1
-			_dpad_vector = Vector2.ZERO
-			_dpad_knob_pos = Vector2.ZERO
-		if _action_touch_index == MOUSE_TOUCH_INDEX:
-			_action_touch_index = -1
-			_action_pressed = false
-		if _pause_touch_index == MOUSE_TOUCH_INDEX:
-			_pause_touch_index = -1
-			_pause_pressed = false
-		if _inv_touch_index == MOUSE_TOUCH_INDEX:
-			_inv_touch_index = -1
-			_inv_pressed = false
+			break
+	_prev_action_ids = cur_action_ids
 
-func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
-	# Only track drag if we're currently holding the d-pad via mouse
-	if _dpad_touch_index == MOUSE_TOUCH_INDEX:
-		var pos := _viewport_pos(event.position)
-		_update_dpad(pos)
+	# ── Pause button processing ──
+	var cur_pause_ids: Array = []
+	for t in touches:
+		if _is_in_circle(t["pos"], PAUSE_CENTER, PAUSE_RADIUS + 10.0):
+			cur_pause_ids.append(t["id"])
+
+	_pause_pressed = cur_pause_ids.size() > 0
+	_pause_just_pressed = false
+	for tid in cur_pause_ids:
+		if tid not in _prev_pause_ids:
+			_pause_just_pressed = true
+			break
+	_prev_pause_ids = cur_pause_ids
+
+	# ── Inventory button processing ──
+	var cur_inv_ids: Array = []
+	for t in touches:
+		if _is_in_circle(t["pos"], INV_CENTER, INV_RADIUS + 10.0):
+			cur_inv_ids.append(t["id"])
+
+	_inv_pressed = cur_inv_ids.size() > 0
+	_inv_just_pressed = false
+	for tid in cur_inv_ids:
+		if tid not in _prev_inv_ids:
+			_inv_just_pressed = true
+			break
+	_prev_inv_ids = cur_inv_ids
+
+	# ── Assign new d-pad touches ──
+	if _dpad_touch_id == -1:
+		for t in touches:
+			var tid = t["id"]
+			# Don't steal touches already claimed by buttons
+			if tid in cur_action_ids or tid in cur_pause_ids or tid in cur_inv_ids:
+				continue
+			if _is_in_dpad(t["pos"]):
+				_dpad_touch_id = tid
+				_update_dpad(t["pos"])
+				break
+
+# ── Geometry helpers ────────────────────────────────────────────────────────
 
 func _update_dpad(pos: Vector2) -> void:
 	var offset := pos - DPAD_CENTER
@@ -300,7 +364,7 @@ func _on_draw() -> void:
 	_draw_inventory_button()
 
 func _draw_dpad() -> void:
-	var dpad_active := _dpad_touch_index != -1
+	var dpad_active := _dpad_touch_id != -1
 
 	# Background circle
 	_draw_node.draw_circle(DPAD_CENTER, DPAD_BG_RADIUS, COL_DPAD_BG)
@@ -340,8 +404,7 @@ func _draw_action_button() -> void:
 	_draw_node.draw_circle(ACTION_CENTER, ACTION_RADIUS, bg_col)
 	_draw_circle_outline(_draw_node, ACTION_CENTER, ACTION_RADIUS, Color(0.3, 0.55, 0.3, 0.35), 2.0)
 
-	# "E" label — draw as a simple text approximation using lines
-	# (using draw_string requires a font resource; use draw_char or polylines instead)
+	# "E" label
 	_draw_letter_e(_draw_node, ACTION_CENTER, 16.0, txt_col)
 
 func _draw_pause_button() -> void:
@@ -390,7 +453,6 @@ func _draw_circle_outline(node: Control, center: Vector2, radius: float, color: 
 		node.draw_line(points[i], points[i + 1], color, width)
 
 func _draw_letter_e(node: Control, center: Vector2, size: float, color: Color) -> void:
-	# Draw "E" using lines
 	var half := size / 2.0
 	var left := center.x - half * 0.4
 	var right := center.x + half * 0.5
@@ -398,11 +460,7 @@ func _draw_letter_e(node: Control, center: Vector2, size: float, color: Color) -
 	var mid := center.y
 	var bottom := center.y + half
 	var w := 2.5
-	# Vertical bar
 	node.draw_line(Vector2(left, top), Vector2(left, bottom), color, w)
-	# Top horizontal
 	node.draw_line(Vector2(left, top), Vector2(right, top), color, w)
-	# Middle horizontal
 	node.draw_line(Vector2(left, mid), Vector2(right - 2, mid), color, w)
-	# Bottom horizontal
 	node.draw_line(Vector2(left, bottom), Vector2(right, bottom), color, w)
