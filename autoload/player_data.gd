@@ -177,7 +177,7 @@ func harvest_tile(tile_index: int) -> String:
 	tile["crop_type"] = ""
 	tile["growth"] = 0
 	tile["watered"] = false
-	var rewards = {"sunflower_seeds": 8, "carrot_seeds": 5, "strawberry_seeds": 12}
+	var rewards = {"sunflower_seeds": 6, "carrot_seeds": 10, "strawberry_seeds": 16}
 	add_coins(rewards.get(crop, 5))
 	return crop
 

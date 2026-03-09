@@ -570,7 +570,7 @@ func _interact_with_tile(idx: int) -> void:
 			var crop = PlayerData.harvest_tile(idx)
 			if crop != "":
 				_refresh_tile_drawer(idx)
-				var rewards = {"sunflower_seeds": 8, "carrot_seeds": 5, "strawberry_seeds": 12}
+				var rewards = {"sunflower_seeds": 6, "carrot_seeds": 10, "strawberry_seeds": 16}
 				GameManager.show_message(self, "🎉 Harvested! +%d coins!" % rewards.get(crop, 5), 2.0)
 
 func _refresh_tile_drawer(idx: int) -> void:

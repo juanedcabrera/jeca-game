@@ -39,9 +39,9 @@ const NPC_NAMES = {
 
 const SHOP_ITEMS = {
 	"seeds": [
-		{"id": "sunflower_seeds", "name": "Sofi's Sunflower Seeds", "cost": 5,  "icon": "🌻", "desc": "Grows in 2 days"},
-		{"id": "carrot_seeds",    "name": "Sofi's Carrot Seeds",    "cost": 8,  "icon": "🥕", "desc": "Grows in 3 days"},
-		{"id": "strawberry_seeds","name": "Sofi's Strawberry Seeds","cost": 12, "icon": "🍓", "desc": "Grows in 4 days, worth 12 coins!"},
+		{"id": "sunflower_seeds", "name": "Sofi's Sunflower Seeds", "cost": 5,  "icon": "🌻", "desc": "Grows in 2 days, sells for 6"},
+		{"id": "carrot_seeds",    "name": "Sofi's Carrot Seeds",    "cost": 8,  "icon": "🥕", "desc": "Grows in 3 days, sells for 10"},
+		{"id": "strawberry_seeds","name": "Sofi's Strawberry Seeds","cost": 12, "icon": "🍓", "desc": "Grows in 4 days, sells for 16!"},
 	],
 	"livestock": [
 		{"id": "chicken", "name": "Lucas's Chicken", "cost": 15, "icon": "🐔", "desc": "Tends for 2 coins/day"},
@@ -51,7 +51,7 @@ const SHOP_ITEMS = {
 	"tools": [
 		{"id": "sprinkler",   "name": "Sprinkler",    "cost": 40, "icon": "💦", "desc": "Auto-waters all crops each day"},
 		{"id": "fertilizer",  "name": "Fertilizer",   "cost": 15, "icon": "🌱", "desc": "Speeds up crop growth by 1 day"},
-		{"id": "animal_food", "name": "Animal Food",  "cost": 5,  "icon": "🥣", "desc": "Feed & water your livestock (1/day)"},
+		{"id": "animal_food", "name": "Animal Food",  "cost": 8,  "icon": "🥣", "desc": "Feed & water your livestock (1/day)"},
 	],
 }
 

@@ -805,16 +805,16 @@ func _check_letter(btn_idx: int) -> void:
 		b.disabled = true
 
 	if is_correct:
-		_feedback_label.text = "Correct! +2 coins!"
+		_feedback_label.text = "Correct! +3 coins!"
 		_feedback_label.add_theme_color_override("font_color", Color(0.3, 0.85, 0.3))
-		PlayerData.add_coins(2)
-		_session_coins_earned += 2
+		PlayerData.add_coins(3)
+		_session_coins_earned += 3
 		_hud_coins.text = "Coins: %d" % PlayerData.coins
 
 		var is_fertilizer_reward = ((PlayerData.words_read + 1) % FERTILIZER_EVERY == 0)
 		if is_fertilizer_reward:
 			PlayerData.add_item("fertilizer", 1)
-			_feedback_label.text = "Excellent! +2 coins and Fertilizer!"
+			_feedback_label.text = "Excellent! +3 coins and Fertilizer!"
 
 		PlayerData.words_read += 1
 	else:

@@ -37,10 +37,10 @@ const ORE_POSITIONS       = {
 }
 
 const COINS_PER_TYPE = {
-	"addition":       2,
-	"subtraction":    3,
-	"multiplication": 4,
-	"division":       5,
+	"addition":       3,
+	"subtraction":    4,
+	"multiplication": 5,
+	"division":       6,
 }
 
 const UNLOCK_THRESHOLD = 15
