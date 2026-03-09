@@ -114,6 +114,11 @@ func _input(event: InputEvent) -> void:
 		_handle_touch(event)
 	elif event is InputEventScreenDrag:
 		_handle_drag(event)
+	# Fallback: iPad Safari / Godot web emits mouse events instead of touch events
+	elif event is InputEventMouseButton:
+		_handle_mouse_button(event)
+	elif event is InputEventMouseMotion:
+		_handle_mouse_motion(event)
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
@@ -209,6 +214,56 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 
 func _handle_drag(event: InputEventScreenDrag) -> void:
 	if event.index == _dpad_touch_index:
+		var pos := _viewport_pos(event.position)
+		_update_dpad(pos)
+
+# ── Mouse event fallback (iPad Safari / web) ────────────────────────────────
+# Godot web export on iPad may only emit mouse events for touches.
+# We use touch index -2 to distinguish mouse-based input from real multi-touch.
+
+const MOUSE_TOUCH_INDEX := -2
+
+func _handle_mouse_button(event: InputEventMouseButton) -> void:
+	if event.button_index != MOUSE_BUTTON_LEFT:
+		return
+	var pos := _viewport_pos(event.position)
+
+	if event.pressed:
+		# Check which control region was pressed
+		if _is_in_dpad(pos) and _dpad_touch_index == -1:
+			_dpad_touch_index = MOUSE_TOUCH_INDEX
+			_update_dpad(pos)
+		elif _is_in_circle(pos, ACTION_CENTER, ACTION_RADIUS + 15.0) and _action_touch_index == -1:
+			_action_touch_index = MOUSE_TOUCH_INDEX
+			_action_pressed = true
+			_action_just_pressed = true
+		elif _is_in_circle(pos, PAUSE_CENTER, PAUSE_RADIUS + 10.0) and _pause_touch_index == -1:
+			_pause_touch_index = MOUSE_TOUCH_INDEX
+			_pause_pressed = true
+			_pause_just_pressed = true
+		elif _is_in_circle(pos, INV_CENTER, INV_RADIUS + 10.0) and _inv_touch_index == -1:
+			_inv_touch_index = MOUSE_TOUCH_INDEX
+			_inv_pressed = true
+			_inv_just_pressed = true
+	else:
+		# Mouse released — clear any control using MOUSE_TOUCH_INDEX
+		if _dpad_touch_index == MOUSE_TOUCH_INDEX:
+			_dpad_touch_index = -1
+			_dpad_vector = Vector2.ZERO
+			_dpad_knob_pos = Vector2.ZERO
+		if _action_touch_index == MOUSE_TOUCH_INDEX:
+			_action_touch_index = -1
+			_action_pressed = false
+		if _pause_touch_index == MOUSE_TOUCH_INDEX:
+			_pause_touch_index = -1
+			_pause_pressed = false
+		if _inv_touch_index == MOUSE_TOUCH_INDEX:
+			_inv_touch_index = -1
+			_inv_pressed = false
+
+func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
+	# Only track drag if we're currently holding the d-pad via mouse
+	if _dpad_touch_index == MOUSE_TOUCH_INDEX:
 		var pos := _viewport_pos(event.position)
 		_update_dpad(pos)
 
