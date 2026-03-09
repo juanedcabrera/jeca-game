@@ -596,10 +596,13 @@ func _tend_animals() -> void:
 
 	PlayerData.use_item("animal_food")
 	PlayerData.animals_tended_today = true
+	var total_earned = 0
+	var earn_per_type = {"chicken": 2, "pig": 3, "cow": 5}
 	for animal in PlayerData.animals:
 		animal["happiness"] = min(10, animal.get("happiness", 5) + 2)
-	PlayerData.add_coins(PlayerData.animals.size() * 2)
-	GameManager.show_message(self, "Fed & watered! +%d coins 🥣💧" % (PlayerData.animals.size() * 2), 2.0)
+		total_earned += earn_per_type.get(animal.get("type", "chicken"), 2)
+	PlayerData.add_coins(total_earned)
+	GameManager.show_message(self, "Fed & watered! +%d coins 🥣💧" % total_earned, 2.0)
 
 func _advance_day() -> void:
 	var had_sprinkler = PlayerData.has_item("sprinkler")

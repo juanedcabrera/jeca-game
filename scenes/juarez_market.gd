@@ -521,6 +521,12 @@ func _buy_item(item: Dictionary) -> void:
 		return
 
 	if item["id"] in ["chicken", "pig", "cow"]:
+		if PlayerData.animals.size() >= 3:
+			# Refund — pen is full
+			PlayerData.add_coins(cost)
+			_show_feedback("Your pen is full! (max 3 animals)", Color(0.85, 0.3, 0.1))
+			_update_overlay_coins()
+			return
 		PlayerData.add_animal(item["id"])
 		_show_feedback("🎉 %s added to your farm!" % item["name"], Color(0.2, 0.75, 0.2))
 	else:
