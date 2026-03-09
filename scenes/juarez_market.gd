@@ -520,6 +520,12 @@ func _buy_item(item: Dictionary) -> void:
 		_show_feedback("Not enough coins! Earn more at the Math Mines.", Color(0.85, 0.3, 0.1))
 		return
 
+	if item["id"] == "sprinkler" and PlayerData.has_item("sprinkler"):
+		PlayerData.add_coins(cost)
+		_show_feedback("You already own a sprinkler!", Color(0.85, 0.3, 0.1))
+		_update_overlay_coins()
+		return
+
 	if item["id"] in ["chicken", "pig", "cow"]:
 		if PlayerData.animals.size() >= 3:
 			# Refund — pen is full

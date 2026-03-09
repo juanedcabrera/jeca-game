@@ -157,6 +157,8 @@ func push_slot(slot: int, data: Dictionary) -> bool:
 		"words_read":           data.get("words_read", 0),
 		"intro_seen":           data.get("intro_seen", false),
 		"player_age":           data.get("player_age", 0),
+		"animals_tended_today": data.get("animals_tended_today", false),
+		"game_started":         data.get("game_started", false),
 	}
 	var result = await _post(
 		"/rest/v1/save_slots",
@@ -209,6 +211,8 @@ func fetch_and_sync_slots() -> bool:
 			"words_read":           row.get("words_read", 0),
 			"intro_seen":           row.get("intro_seen", false),
 			"player_age":           row.get("player_age", 0),
+			"animals_tended_today": row.get("animals_tended_today", false),
+			"game_started":         row.get("game_started", false),
 		}
 		var file = FileAccess.open("user://cabrera_save_%d.json" % slot, FileAccess.WRITE)
 		if file:

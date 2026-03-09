@@ -210,6 +210,7 @@ func save_game() -> void:
 		"intro_seen": intro_seen,
 		"animals_tended_today": animals_tended_today,
 		"player_age": player_age,
+		"game_started": game_started,
 	}
 	# Local save (instant, works offline)
 	var file = FileAccess.open(_slot_path(current_slot), FileAccess.WRITE)
@@ -256,7 +257,7 @@ func load_slot(slot: int) -> bool:
 			and math_multiplication_solved == 0 and math_division_solved == 0 \
 			and math_problems_solved > 0:
 		math_addition_solved = math_problems_solved
-	game_started = true
+	game_started = data.get("game_started", true)
 	return true
 
 # Returns a lightweight preview dict for a slot without loading it into memory.
