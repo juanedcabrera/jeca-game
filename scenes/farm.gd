@@ -373,6 +373,8 @@ func _set_tool(tool_id: String) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		GameManager.show_pause_menu(self)
+	if TouchControls.is_pause_pressed():
+		GameManager.show_pause_menu(self)
 
 func _physics_process(delta: float) -> void:
 	if _inventory_open:
@@ -390,6 +392,15 @@ func _physics_process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
 		dir.x += 1
 		_facing = "right"
+
+	# Touch controls (overrides keyboard if active)
+	var touch_dir = TouchControls.get_movement_vector()
+	if touch_dir != Vector2.ZERO:
+		dir = touch_dir
+		if abs(touch_dir.x) > abs(touch_dir.y):
+			_facing = "right" if touch_dir.x > 0 else "left"
+		else:
+			_facing = "down" if touch_dir.y > 0 else "up"
 
 	if dir != Vector2.ZERO:
 		dir = dir.normalized()
@@ -428,6 +439,15 @@ func _input(event: InputEvent) -> void:
 			_set_tool("carrot_seeds")
 		elif event.keycode == KEY_5:
 			_set_tool("strawberry_seeds")
+
+	# Touch controls
+	if TouchControls.is_action_just_pressed():
+		if _inventory_open:
+			_toggle_inventory()
+		else:
+			_interact()
+	if TouchControls.is_inventory_pressed():
+		_toggle_inventory()
 
 func _check_exit_zones() -> void:
 	if _transitioning:

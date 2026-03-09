@@ -5,9 +5,122 @@ var _name_input: LineEdit
 var _preview_node: Node2D
 var _boy_btn: Button
 var _girl_btn: Button
+var _use_html_inputs: bool = false  # True on web (for iOS keyboard support)
 
 func _ready() -> void:
 	_build_scene()
+
+	# On web, create native HTML input overlaying the canvas for iOS keyboard support
+	if OS.has_feature("web"):
+		_use_html_inputs = true
+		_setup_html_inputs()
+		# Hide the Godot LineEdit so only the HTML input is visible
+		if _name_input:
+			_name_input.visible = false
+	else:
+		await get_tree().process_frame
+		if _name_input:
+			_name_input.grab_focus()
+
+func _process(_delta: float) -> void:
+	_sync_html_input()
+
+# ── HTML input overlay (web/iOS keyboard fix) ────────────────────────────────
+# iOS Safari requires native HTML <input> focus from a user gesture to open
+# the virtual keyboard. Godot's LineEdit processes touches asynchronously,
+# so the keyboard never opens. We overlay a visible HTML input (hiding the
+# Godot LineEdit) and sync its text into GDScript each frame.
+
+func _setup_html_inputs() -> void:
+	# Viewport is 960x540; input is positioned in viewport coords.
+	# We calculate screen position from the canvas bounding rect.
+	JavaScriptBridge.eval("""
+	(function() {
+		var canvas = document.querySelector('canvas');
+		if (!canvas) return;
+
+		function mapRect(gx, gy, gw, gh) {
+			var cr = canvas.getBoundingClientRect();
+			var gameAspect = 960 / 540;
+			var canvasAspect = cr.width / cr.height;
+			var ox = 0, oy = 0, s = 1;
+			if (canvasAspect > gameAspect) {
+				s = cr.height / 540;
+				ox = (cr.width - 960 * s) / 2;
+			} else {
+				s = cr.width / 960;
+				oy = (cr.height - 540 * s) / 2;
+			}
+			return {
+				left: cr.left + ox + gx * s,
+				top: cr.top + oy + gy * s,
+				width: gw * s,
+				height: gh * s,
+				scale: s
+			};
+		}
+
+		var old = document.getElementById('godot-charname');
+		if (old) old.remove();
+		var inp = document.createElement('input');
+		inp.id = 'godot-charname';
+		inp.type = 'text';
+		inp.placeholder = 'Enter your name...';
+		inp.maxLength = 14;
+		inp.autocapitalize = 'words';
+		inp.autocorrect = 'off';
+		inp.spellcheck = false;
+		var m = mapRect(220, 255, 310, 48);
+		inp.style.cssText = 'position:fixed;z-index:9999;box-sizing:border-box;'
+			+ 'left:' + m.left + 'px;top:' + m.top + 'px;'
+			+ 'width:' + m.width + 'px;height:' + m.height + 'px;'
+			+ 'font-size:' + Math.max(16, 20 * m.scale) + 'px;'
+			+ 'padding:0 12px;border:2px solid #8C6633;border-radius:8px;'
+			+ 'background:rgba(255,250,235,0.97);color:#33261A;outline:none;'
+			+ '-webkit-appearance:none;';
+		document.body.appendChild(inp);
+
+		// Reposition on resize
+		window._godotCharNameResize = function() {
+			var el = document.getElementById('godot-charname');
+			if (!el) return;
+			var m = mapRect(220, 255, 310, 48);
+			el.style.left = m.left + 'px';
+			el.style.top = m.top + 'px';
+			el.style.width = m.width + 'px';
+			el.style.height = m.height + 'px';
+			el.style.fontSize = Math.max(16, 20 * m.scale) + 'px';
+		};
+		window.addEventListener('resize', window._godotCharNameResize);
+	})();
+	""")
+
+func _remove_html_inputs() -> void:
+	if not _use_html_inputs:
+		return
+	JavaScriptBridge.eval("""
+	(function() {
+		var el = document.getElementById('godot-charname');
+		if (el) el.remove();
+		if (window._godotCharNameResize) {
+			window.removeEventListener('resize', window._godotCharNameResize);
+			delete window._godotCharNameResize;
+		}
+	})();
+	""")
+
+func _sync_html_input() -> void:
+	if not _use_html_inputs:
+		return
+	var val = JavaScriptBridge.eval("(document.getElementById('godot-charname')?.value||'')")
+	if val == null:
+		return
+	var text = str(val)
+	if _name_input and _name_input.text != text:
+		_name_input.text = text
+
+func _exit_tree() -> void:
+	_remove_html_inputs()
 
 func _build_scene() -> void:
 	# Background
@@ -142,6 +255,7 @@ func _on_start_pressed() -> void:
 	var name_val = _name_input.text.strip_edges()
 	if name_val.length() == 0:
 		name_val = "Friend"
+	_remove_html_inputs()
 	PlayerData.player_name = name_val
 	PlayerData.player_gender = _selected_gender
 	PlayerData.game_started = true

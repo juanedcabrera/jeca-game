@@ -244,6 +244,15 @@ func _physics_process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
 		dir.x += 1; _facing = "right"
 
+	# Touch controls
+	var touch_dir = TouchControls.get_movement_vector()
+	if touch_dir != Vector2.ZERO:
+		dir = touch_dir
+		if abs(touch_dir.x) > abs(touch_dir.y):
+			_facing = "right" if touch_dir.x > 0 else "left"
+		else:
+			_facing = "down" if touch_dir.y > 0 else "up"
+
 	if dir != Vector2.ZERO:
 		dir = dir.normalized()
 		_walk_frame += delta * 8.0
@@ -266,6 +275,12 @@ func _input(event: InputEvent) -> void:
 			GameManager.show_pause_menu(self)
 		elif event.keycode == KEY_E:
 			_interact()
+
+	# Touch controls
+	if TouchControls.is_pause_pressed():
+		GameManager.show_pause_menu(self)
+	if TouchControls.is_action_just_pressed():
+		_interact()
 
 func _check_nearby() -> void:
 	_near_zone = ""

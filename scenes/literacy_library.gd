@@ -222,6 +222,16 @@ func _unhandled_input(event: InputEvent) -> void:
 				if _mode == "walk" and _near_shelf:
 					_show_game_menu()
 
+	# Touch controls
+	if TouchControls.is_pause_pressed():
+		if _mode == "walk":
+			GameManager.show_pause_menu(self)
+		elif _mode == "menu":
+			_close_puzzle()
+	if TouchControls.is_action_just_pressed():
+		if _mode == "walk" and _near_shelf:
+			_show_game_menu()
+
 func _physics_process(delta: float) -> void:
 	if _mode != "walk":
 		return
@@ -235,6 +245,15 @@ func _physics_process(delta: float) -> void:
 		dir.x -= 1; _facing = "left"
 	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
 		dir.x += 1; _facing = "right"
+
+	# Touch controls
+	var touch_dir = TouchControls.get_movement_vector()
+	if touch_dir != Vector2.ZERO:
+		dir = touch_dir
+		if abs(touch_dir.x) > abs(touch_dir.y):
+			_facing = "right" if touch_dir.x > 0 else "left"
+		else:
+			_facing = "down" if touch_dir.y > 0 else "up"
 
 	if dir != Vector2.ZERO:
 		dir = dir.normalized()

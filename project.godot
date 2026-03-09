@@ -25,6 +25,7 @@ config/icon="res://icon.svg"
 PlayerData="*res://autoload/player_data.gd"
 GameManager="*res://autoload/game_manager.gd"
 Supabase="*res://autoload/supabase.gd"
+TouchControls="*res://autoload/touch_controls.gd"
 
 [display]
 
