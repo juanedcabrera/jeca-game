@@ -104,13 +104,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				if _mode == "walk" and _near_ore != "":
 					_start_activity(_near_ore)
 
-	# Touch controls
-	if TouchControls.is_pause_pressed():
-		if _mode == "walk":
-			GameManager.show_pause_menu(self)
-	if TouchControls.is_action_just_pressed():
-		if _mode == "walk" and _near_ore != "":
-			_start_activity(_near_ore)
 
 func _physics_process(delta: float) -> void:
 	if _mode != "walk":
@@ -1017,7 +1010,12 @@ class _CaveFloorDrawer extends Node2D:
 		# Small puddles (water seeping through)
 		var puddle_positions = [Vector2(350, 380), Vector2(600, 320), Vector2(450, 460)]
 		for pp in puddle_positions:
-			draw_ellipse(pp, 18, 8, Color(0.35, 0.50, 0.62, 0.3))
+			# Draw ellipse as a stretched arc (draw_ellipse not available in all versions)
+			var pts = PackedVector2Array()
+			for a in range(33):
+				var angle = float(a) / 32.0 * TAU
+				pts.append(pp + Vector2(cos(angle) * 18, sin(angle) * 8))
+			draw_colored_polygon(pts, Color(0.35, 0.50, 0.62, 0.3))
 		# Tiny pebbles
 		for i in range(30):
 			var px = rng.randf_range(100, 860)

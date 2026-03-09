@@ -276,11 +276,6 @@ func _input(event: InputEvent) -> void:
 		elif event.keycode == KEY_E:
 			_interact()
 
-	# Touch controls
-	if TouchControls.is_pause_pressed():
-		GameManager.show_pause_menu(self)
-	if TouchControls.is_action_just_pressed():
-		_interact()
 
 func _check_nearby() -> void:
 	_near_zone = ""

@@ -92,15 +92,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_E and _mode == "walk" and _near_npc != "":
 			_open_shop(_near_npc)
 
-	# Touch controls
-	if TouchControls.is_pause_pressed():
-		if _mode == "shop":
-			_close_shop()
-		else:
-			GameManager.show_pause_menu(self)
-	if TouchControls.is_action_just_pressed():
-		if _mode == "walk" and _near_npc != "":
-			_open_shop(_near_npc)
 
 # ── Scene ─────────────────────────────────────────────────────────────────────
 

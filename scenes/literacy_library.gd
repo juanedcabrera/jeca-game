@@ -222,15 +222,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				if _mode == "walk" and _near_shelf:
 					_show_game_menu()
 
-	# Touch controls
-	if TouchControls.is_pause_pressed():
-		if _mode == "walk":
-			GameManager.show_pause_menu(self)
-		elif _mode == "menu":
-			_close_puzzle()
-	if TouchControls.is_action_just_pressed():
-		if _mode == "walk" and _near_shelf:
-			_show_game_menu()
 
 func _physics_process(delta: float) -> void:
 	if _mode != "walk":

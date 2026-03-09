@@ -373,8 +373,6 @@ func _set_tool(tool_id: String) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		GameManager.show_pause_menu(self)
-	if TouchControls.is_pause_pressed():
-		GameManager.show_pause_menu(self)
 
 func _physics_process(delta: float) -> void:
 	if _inventory_open:
@@ -440,14 +438,6 @@ func _input(event: InputEvent) -> void:
 		elif event.keycode == KEY_5:
 			_set_tool("strawberry_seeds")
 
-	# Touch controls
-	if TouchControls.is_action_just_pressed():
-		if _inventory_open:
-			_toggle_inventory()
-		else:
-			_interact()
-	if TouchControls.is_inventory_pressed():
-		_toggle_inventory()
 
 func _check_exit_zones() -> void:
 	if _transitioning:
