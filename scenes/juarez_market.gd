@@ -38,34 +38,52 @@ const NPC_NAMES = {
 	"merchant": "Abuelo (Supplies)",
 }
 
+const ITEM_COLORS = {
+	"sunflower_seeds": Color(1.0, 0.85, 0.1),
+	"carrot_seeds": Color(1.0, 0.5, 0.1),
+	"strawberry_seeds": Color(0.9, 0.15, 0.2),
+	"chicken": Color(1.0, 0.85, 0.3),
+	"pig": Color(1.0, 0.7, 0.7),
+	"cow": Color(0.6, 0.4, 0.2),
+	"sprinkler": Color(0.3, 0.6, 1.0),
+	"fertilizer": Color(0.3, 0.75, 0.2),
+	"animal_food": Color(0.85, 0.7, 0.4),
+	"sunflower": Color(1.0, 0.85, 0.1),
+	"carrot": Color(1.0, 0.5, 0.1),
+	"strawberry": Color(0.9, 0.15, 0.2),
+	"egg": Color(1.0, 0.95, 0.8),
+	"bacon": Color(0.8, 0.3, 0.2),
+	"milk": Color(0.95, 0.95, 1.0),
+}
+
 const SHOP_ITEMS = {
 	"seeds": [
-		{"id": "sunflower_seeds", "name": "Sofi's Sunflower Seeds", "cost": 5,  "icon": "🌻", "desc": "Grows in 2 days, harvest sells for 6"},
-		{"id": "carrot_seeds",    "name": "Sofi's Carrot Seeds",    "cost": 8,  "icon": "🥕", "desc": "Grows in 3 days, harvest sells for 10"},
-		{"id": "strawberry_seeds","name": "Sofi's Strawberry Seeds","cost": 12, "icon": "🍓", "desc": "Grows in 4 days, harvest sells for 16!"},
+		{"id": "sunflower_seeds", "name": "Sofi's Sunflower Seeds", "cost": 5,  "label": "Sunflower Seeds", "desc": "Grows in 2 days, harvest sells for 6"},
+		{"id": "carrot_seeds",    "name": "Sofi's Carrot Seeds",    "cost": 8,  "label": "Carrot Seeds", "desc": "Grows in 3 days, harvest sells for 10"},
+		{"id": "strawberry_seeds","name": "Sofi's Strawberry Seeds","cost": 12, "label": "Strawberry Seeds", "desc": "Grows in 4 days, harvest sells for 16!"},
 	],
 	"livestock": [
-		{"id": "chicken", "name": "Lucas's Chicken", "cost": 15, "icon": "🐔", "desc": "Produces eggs (sell for 2 each)"},
-		{"id": "pig",     "name": "Lucas's Pig",     "cost": 20, "icon": "🐷", "desc": "Produces bacon (sell for 3 each)"},
-		{"id": "cow",     "name": "Lucas's Cow",     "cost": 30, "icon": "🐄", "desc": "Produces milk (sell for 5 each)"},
+		{"id": "chicken", "name": "Lucas's Chicken", "cost": 15, "label": "Chicken", "desc": "Produces eggs (sell for 2 each)"},
+		{"id": "pig",     "name": "Lucas's Pig",     "cost": 20, "label": "Pig", "desc": "Produces bacon (sell for 3 each)"},
+		{"id": "cow",     "name": "Lucas's Cow",     "cost": 30, "label": "Cow", "desc": "Produces milk (sell for 5 each)"},
 	],
 	"tools": [
-		{"id": "sprinkler",   "name": "Sprinkler",    "cost": 40, "icon": "💦", "desc": "Auto-waters all crops each day"},
-		{"id": "fertilizer",  "name": "Fertilizer",   "cost": 15, "icon": "🌱", "desc": "Speeds up crop growth by 1 day"},
-		{"id": "animal_food", "name": "Animal Food",  "cost": 8,  "icon": "🥣", "desc": "Feed & water your livestock (1/day)"},
+		{"id": "sprinkler",   "name": "Sprinkler",    "cost": 40, "label": "Sprinkler", "desc": "Auto-waters all crops each day"},
+		{"id": "fertilizer",  "name": "Fertilizer",   "cost": 15, "label": "Fertilizer", "desc": "Speeds up crop growth by 1 day"},
+		{"id": "animal_food", "name": "Animal Food",  "cost": 8,  "label": "Feed", "desc": "Feed & water your livestock (1/day)"},
 	],
 }
 
 const SELL_ITEMS = {
 	"seeds": [
-		{"id": "sunflower", "name": "Sunflower", "price": 6, "icon": "🌻"},
-		{"id": "carrot", "name": "Carrot", "price": 10, "icon": "🥕"},
-		{"id": "strawberry", "name": "Strawberry", "price": 16, "icon": "🍓"},
+		{"id": "sunflower", "name": "Sunflower", "price": 6},
+		{"id": "carrot", "name": "Carrot", "price": 10},
+		{"id": "strawberry", "name": "Strawberry", "price": 16},
 	],
 	"livestock": [
-		{"id": "egg", "name": "Egg", "price": 2, "icon": "🥚"},
-		{"id": "bacon", "name": "Bacon", "price": 3, "icon": "🥓"},
-		{"id": "milk", "name": "Milk", "price": 5, "icon": "🥛"},
+		{"id": "egg", "name": "Egg", "price": 2},
+		{"id": "bacon", "name": "Bacon", "price": 3},
+		{"id": "milk", "name": "Milk", "price": 5},
 	],
 	"tools": [],
 }
@@ -255,7 +273,7 @@ func _build_hud() -> void:
 	hud_bg.z_index = 10
 	add_child(hud_bg)
 
-	_hud_coins = GameManager.make_label("💰 %d" % PlayerData.coins, Vector2(814, 8), 15, Color(1.0, 0.9, 0.2))
+	_hud_coins = GameManager.make_label("Coins: %d" % PlayerData.coins, Vector2(814, 8), 15, Color(1.0, 0.9, 0.2))
 	_hud_coins.z_index = 11
 	add_child(_hud_coins)
 
@@ -363,7 +381,7 @@ func _build_shop_overlay() -> void:
 	# Title
 	var title = Label.new()
 	title.name = "OverlayTitle"
-	title.text = "🏪 Juarez Market"
+	title.text = "Juarez Market"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 26)
 	title.add_theme_color_override("font_color", Color(1.0, 0.92, 0.3))
@@ -380,7 +398,7 @@ func _build_shop_overlay() -> void:
 	_shop_overlay.add_child(_overlay_coins)
 
 	# Close button
-	var close_btn = GameManager.make_button("✕ Close", Vector2(820, 40), Vector2(110, 36), Color(0.6, 0.15, 0.1))
+	var close_btn = GameManager.make_button("X Close", Vector2(820, 40), Vector2(110, 36), Color(0.6, 0.15, 0.1))
 	close_btn.add_theme_font_size_override("font_size", 15)
 	close_btn.pressed.connect(_close_shop)
 	_shop_overlay.add_child(close_btn)
@@ -396,9 +414,9 @@ func _build_shop_overlay() -> void:
 
 	# Tab buttons
 	var tabs = [
-		["seeds",     "🌻 Seeds (Sofi)",       Color(0.35, 0.55, 0.15)],
-		["livestock", "🐔 Livestock (Lucas)",   Color(0.55, 0.35, 0.15)],
-		["tools",     "🔧 Abuelo's Supplies",    Color(0.25, 0.35, 0.60)],
+		["seeds",     "Seeds (Sofi)",           Color(0.35, 0.55, 0.15)],
+		["livestock", "Livestock (Lucas)",       Color(0.55, 0.35, 0.15)],
+		["tools",     "Abuelo's Supplies",       Color(0.25, 0.35, 0.60)],
 	]
 	_tab_buttons.clear()
 	for i in range(tabs.size()):
@@ -499,32 +517,39 @@ func _add_item_row(item: Dictionary, row: int) -> void:
 	panel.position = Vector2(0, y)
 	_item_list_node.add_child(panel)
 
-	var icon_lbl = Label.new()
-	icon_lbl.text = item["icon"]
-	icon_lbl.position = Vector2(10, 14)
-	icon_lbl.size = Vector2(52, 52)
-	icon_lbl.add_theme_font_size_override("font_size", 34)
-	panel.add_child(icon_lbl)
+	# Colored dot indicator
+	var dot = ColorRect.new()
+	var dot_color = ITEM_COLORS.get(item["id"], Color(0.6, 0.6, 0.6))
+	dot.color = dot_color
+	dot.size = Vector2(36, 36)
+	dot.position = Vector2(14, 20)
+	panel.add_child(dot)
+	var dot_border = ColorRect.new()
+	dot_border.color = dot_color.darkened(0.3)
+	dot_border.size = Vector2(38, 38)
+	dot_border.position = Vector2(13, 19)
+	dot_border.z_index = -1
+	panel.add_child(dot_border)
 
 	var name_lbl = Label.new()
 	name_lbl.text = item["name"]
-	name_lbl.position = Vector2(70, 8)
-	name_lbl.size = Vector2(430, 30)
+	name_lbl.position = Vector2(62, 8)
+	name_lbl.size = Vector2(440, 30)
 	name_lbl.add_theme_font_size_override("font_size", 18)
 	name_lbl.add_theme_color_override("font_color", Color(0.2, 0.1, 0.0))
 	panel.add_child(name_lbl)
 
 	var desc_lbl = Label.new()
 	desc_lbl.text = item["desc"]
-	desc_lbl.position = Vector2(70, 40)
-	desc_lbl.size = Vector2(430, 26)
+	desc_lbl.position = Vector2(62, 40)
+	desc_lbl.size = Vector2(440, 26)
 	desc_lbl.add_theme_font_size_override("font_size", 13)
 	desc_lbl.add_theme_color_override("font_color", Color(0.4, 0.25, 0.05))
 	panel.add_child(desc_lbl)
 
 	var cost_str = "%d coins" % item["cost"] if item["cost"] > 0 else "FREE"
 	var cost_lbl = Label.new()
-	cost_lbl.text = "💰 %s" % cost_str
+	cost_lbl.text = cost_str
 	cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	cost_lbl.position = Vector2(506, 8)
 	cost_lbl.size = Vector2(128, 30)
@@ -575,10 +600,10 @@ func _buy_item(item: Dictionary) -> void:
 			_update_overlay_coins()
 			return
 		PlayerData.add_animal(item["id"])
-		_show_feedback("🎉 %s added to your farm!" % item["name"], Color(0.2, 0.75, 0.2))
+		_show_feedback("%s added to your farm!" % item["name"], Color(0.2, 0.75, 0.2))
 	else:
 		PlayerData.add_item(item["id"], 1)
-		_show_feedback("🎉 Bought %s!" % item["name"], Color(0.2, 0.75, 0.2))
+		_show_feedback("Bought %s!" % item["name"], Color(0.2, 0.75, 0.2))
 
 	_update_overlay_coins()
 	_update_inv_label()
@@ -594,16 +619,23 @@ func _add_sell_row(item: Dictionary, row: int) -> void:
 	panel.position = Vector2(0, y)
 	_item_list_node.add_child(panel)
 
-	var icon_lbl = Label.new()
-	icon_lbl.text = item["icon"]
-	icon_lbl.position = Vector2(10, 14)
-	icon_lbl.size = Vector2(52, 52)
-	icon_lbl.add_theme_font_size_override("font_size", 34)
-	panel.add_child(icon_lbl)
+	# Colored dot indicator
+	var dot = ColorRect.new()
+	var dot_color = ITEM_COLORS.get(item["id"], Color(0.6, 0.6, 0.6))
+	dot.color = dot_color
+	dot.size = Vector2(36, 36)
+	dot.position = Vector2(14, 20)
+	panel.add_child(dot)
+	var dot_border = ColorRect.new()
+	dot_border.color = dot_color.darkened(0.3)
+	dot_border.size = Vector2(38, 38)
+	dot_border.position = Vector2(13, 19)
+	dot_border.z_index = -1
+	panel.add_child(dot_border)
 
 	var name_lbl = Label.new()
 	name_lbl.text = item["name"]
-	name_lbl.position = Vector2(70, 8)
+	name_lbl.position = Vector2(62, 8)
 	name_lbl.size = Vector2(330, 30)
 	name_lbl.add_theme_font_size_override("font_size", 18)
 	name_lbl.add_theme_color_override("font_color", Color(0.1, 0.2, 0.05))
@@ -612,7 +644,7 @@ func _add_sell_row(item: Dictionary, row: int) -> void:
 	var count = PlayerData.get_item_count(item["id"])
 	var owned_lbl = Label.new()
 	owned_lbl.text = "In inventory: %d" % count
-	owned_lbl.position = Vector2(70, 40)
+	owned_lbl.position = Vector2(62, 40)
 	owned_lbl.size = Vector2(330, 26)
 	owned_lbl.add_theme_font_size_override("font_size", 13)
 	owned_lbl.add_theme_color_override("font_color", Color(0.2, 0.35, 0.1))
@@ -669,9 +701,9 @@ func _show_feedback(text: String, color: Color) -> void:
 
 func _update_overlay_coins() -> void:
 	if _overlay_coins:
-		_overlay_coins.text = "💰 %d coins" % PlayerData.coins
+		_overlay_coins.text = "%d coins" % PlayerData.coins
 	if _hud_coins:
-		_hud_coins.text = "💰 %d" % PlayerData.coins
+		_hud_coins.text = "Coins: %d" % PlayerData.coins
 
 func _update_tab_highlight() -> void:
 	for tab_id in _tab_buttons:
@@ -696,12 +728,12 @@ func _update_inv_label() -> void:
 	var inv = _shop_overlay.get_node_or_null("InvLabel")
 	if inv:
 		var parts = []
+		var item_names = {"sunflower_seeds":"Seeds(Sun)","carrot_seeds":"Seeds(Car)","strawberry_seeds":"Seeds(Str)",
+						  "water_jug":"Jug","sprinkler":"Sprinkler","fertilizer":"Fert","animal_food":"Feed"}
 		for key in ["sunflower_seeds", "carrot_seeds", "strawberry_seeds", "water_jug", "sprinkler", "fertilizer", "animal_food"]:
 			var count = PlayerData.get_item_count(key)
 			if count > 0:
-				var icons = {"sunflower_seeds":"🌻","carrot_seeds":"🥕","strawberry_seeds":"🍓",
-							 "water_jug":"💧","sprinkler":"💦","fertilizer":"🌱","animal_food":"🥣"}
-				parts.append("%s×%d" % [icons.get(key, key), count])
+				parts.append("%s x%d" % [item_names.get(key, key), count])
 		inv.text = "Inventory: " + (", ".join(parts) if parts.size() > 0 else "Empty")
 
 func _on_coins_changed(_val: int) -> void:

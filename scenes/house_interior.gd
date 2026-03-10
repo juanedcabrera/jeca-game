@@ -129,7 +129,7 @@ func _build_scene() -> void:
 	_dialogue_label.size = Vector2(860, 100)
 	_dialogue_box.add_child(_dialogue_label)
 
-	_continue_btn = GameManager.make_button("Continue ▶", Vector2(730, 478), Vector2(200, 44), Color(0.25, 0.5, 0.2))
+	_continue_btn = GameManager.make_button("Continue >", Vector2(730, 478), Vector2(200, 44), Color(0.25, 0.5, 0.2))
 	_continue_btn.add_theme_font_size_override("font_size", 18)
 	_continue_btn.pressed.connect(_advance_dialogue)
 	_dialogue_box.add_child(_continue_btn)
@@ -226,7 +226,7 @@ func _end_dialogue() -> void:
 
 func _show_free_hint() -> void:
 	GameManager.show_message(self,
-		"💤 Walk to bed to sleep  |  Walk to door to go outside", 3.5)
+		"Walk to bed to sleep  |  Walk to door to go outside", 3.5)
 
 # ── Input & Movement ───────────────────────────────────────────────────────────
 
@@ -295,7 +295,7 @@ func _check_nearby() -> void:
 
 	if _near_zone == "bed":
 		_interact_ribbon.visible = true
-		_interact_label.text = "[E] Sleep 💤"
+		_interact_label.text = "[E] Sleep"
 	elif _near_zone == "door":
 		_interact_ribbon.visible = true
 		_interact_label.text = "[E] Go Outside"
@@ -346,7 +346,7 @@ func _do_sleep() -> void:
 
 func _sleep_phase_night() -> void:
 	# Show sleep text
-	_sleep_label.text = "💤 Good night, %s..." % PlayerData.player_name
+	_sleep_label.text = "Good night, %s..." % PlayerData.player_name
 	_sleep_label.add_theme_color_override("font_color", Color(0.7, 0.75, 1.0))
 
 	# Advance the day and save
@@ -360,7 +360,7 @@ func _sleep_phase_night() -> void:
 
 func _sleep_phase_dawn() -> void:
 	# Change text to morning
-	_sleep_label.text = "☀️ Day %d" % PlayerData.day
+	_sleep_label.text = "Day %d" % PlayerData.day
 	_sleep_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.7))
 
 	# Fade overlay to warm sunrise tint then clear
@@ -459,8 +459,8 @@ class _BedDrawer extends Node2D:
 		add_child(spr)
 
 	func _draw() -> void:
-		draw_string(ThemeDB.fallback_font, Vector2(-12, -90),
-			"💤", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color.WHITE)
+		draw_string(ThemeDB.fallback_font, Vector2(-16, -90),
+			"Zzz", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.7, 0.75, 1.0))
 
 
 class _DeskDrawer extends Node2D:
@@ -497,7 +497,7 @@ class _DoorDrawer extends Node2D:
 		draw_circle(Vector2(58, 68), 5, Color(0.85, 0.65, 0.1))
 		# "Outside" label
 		draw_string(ThemeDB.fallback_font, Vector2(-10, 148),
-			"🌿 Outside", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.35, 0.55, 0.25))
+			"Outside", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.35, 0.55, 0.25))
 
 
 class _RoomPlayer extends Node2D:
