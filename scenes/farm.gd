@@ -44,6 +44,7 @@ var _action_popup: Control
 var _action_label: Label
 var _inventory_panel: Control
 var _inventory_tool_buttons: Array = []
+var _inventory_tab: String = "tools"  # tools | seeds | harvest | supplies | livestock
 var _farm_tile_drawers: Array = []
 
 # ── State ─────────────────────────────────────────────────────────────────────
@@ -271,7 +272,17 @@ func _build_hud() -> void:
 	hud_border.z_index = 9
 	add_child(hud_border)
 
-	_hud_coins = GameManager.make_label("Coins: %d" % PlayerData.coins, Vector2(814, 6), 15, Color(1.0, 0.9, 0.2))
+	# Coin icon + count
+	var coin_tex = _load_icon("coin")
+	if coin_tex:
+		var coin_icon = TextureRect.new()
+		coin_icon.texture = coin_tex
+		coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		coin_icon.size = Vector2(18, 18)
+		coin_icon.position = Vector2(810, 6)
+		coin_icon.z_index = 11
+		add_child(coin_icon)
+	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(830, 6), 15, Color(1.0, 0.9, 0.2))
 	_hud_coins.z_index = 11
 	add_child(_hud_coins)
 
@@ -279,31 +290,40 @@ func _build_hud() -> void:
 	_hud_day.z_index = 11
 	add_child(_hud_day)
 
-	# ── Inventory chest button (below status panel) ──
-	var chest_btn = GameManager.make_button("BAG [I]", Vector2(836, 62), Vector2(90, 30), Color(0.45, 0.30, 0.12))
-	chest_btn.add_theme_font_size_override("font_size", 13)
+	# ── Inventory button with bag icon ──
+	var bag_tex = _load_icon("bag")
+	if bag_tex:
+		var bag_btn_icon = TextureRect.new()
+		bag_btn_icon.texture = bag_tex
+		bag_btn_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		bag_btn_icon.size = Vector2(20, 20)
+		bag_btn_icon.position = Vector2(838, 56)
+		bag_btn_icon.z_index = 12
+		bag_btn_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(bag_btn_icon)
+	var chest_btn = GameManager.make_button("[I]", Vector2(860, 56), Vector2(60, 24), Color(0.45, 0.30, 0.12))
+	chest_btn.add_theme_font_size_override("font_size", 12)
 	chest_btn.z_index = 11
 	chest_btn.pressed.connect(_toggle_inventory)
 	add_child(chest_btn)
 
-const ITEM_COLORS = {
-	"hand": Color(0.8, 0.7, 0.5), "water_jug": Color(0.3, 0.6, 0.9),
-	"sunflower_seeds": Color(1.0, 0.85, 0.1), "carrot_seeds": Color(0.95, 0.55, 0.1), "strawberry_seeds": Color(0.9, 0.2, 0.3),
-	"fertilizer": Color(0.4, 0.8, 0.3), "sprinkler": Color(0.3, 0.7, 0.9), "animal_food": Color(0.8, 0.65, 0.3),
-	"sunflower": Color(1.0, 0.85, 0.1), "carrot": Color(0.95, 0.55, 0.1), "strawberry": Color(0.9, 0.2, 0.3),
-	"egg": Color(0.95, 0.9, 0.75), "milk": Color(0.9, 0.92, 0.95), "bacon": Color(0.8, 0.3, 0.2),
-}
-
 const ITEM_LABELS = {
 	"hand": "Hand", "water_jug": "Water Jug",
-	"sunflower_seeds": "Sunflower Seed", "carrot_seeds": "Carrot Seed", "strawberry_seeds": "Strawberry Seed",
+	"sunflower_seeds": "Sunflwr Seed", "carrot_seeds": "Carrot Seed", "strawberry_seeds": "Straw Seed",
 	"fertilizer": "Fertilizer", "sprinkler": "Sprinkler", "animal_food": "Feed",
 	"sunflower": "Sunflower", "carrot": "Carrot", "strawberry": "Strawberry",
 	"egg": "Egg", "milk": "Milk", "bacon": "Bacon",
+	"chicken": "Chicken", "pig": "Pig", "cow": "Cow",
 }
 
-const ANIMAL_LABELS = { "chicken": "Chicken", "pig": "Pig", "cow": "Cow" }
-const ANIMAL_COLORS = { "chicken": Color(0.9, 0.8, 0.3), "pig": Color(0.9, 0.6, 0.6), "cow": Color(0.7, 0.55, 0.35) }
+const ICON_PATH = "res://generated_sprites/icons/"
+
+# Tab definitions: id -> { label, items_func }
+const INV_TABS = ["tools", "seeds", "harvest", "supplies", "livestock"]
+const INV_TAB_LABELS = {
+	"tools": "Tools", "seeds": "Seeds", "harvest": "Harvest",
+	"supplies": "Supplies", "livestock": "Animals",
+}
 
 # Items that can be selected as tools/seeds
 const SELECTABLE_ITEMS = ["hand", "water_jug", "sunflower_seeds", "carrot_seeds", "strawberry_seeds"]
@@ -314,44 +334,65 @@ func _build_tool_bar() -> void:
 	_inventory_panel.z_index = 50
 	add_child(_inventory_panel)
 
+func _load_icon(icon_id: String) -> Texture2D:
+	var path = ICON_PATH + icon_id + ".png"
+	if ResourceLoader.exists(path):
+		return load(path)
+	return null
+
+func _get_tab_items(tab: String) -> Array:
+	match tab:
+		"tools":
+			var items = [{"id": "hand", "count": 1, "selectable": true}]
+			var jug = PlayerData.inventory.get("water_jug", 0)
+			items.append({"id": "water_jug", "count": jug, "selectable": jug > 0})
+			return items
+		"seeds":
+			var items: Array = []
+			for sid in ["sunflower_seeds", "carrot_seeds", "strawberry_seeds"]:
+				var cnt = PlayerData.inventory.get(sid, 0)
+				items.append({"id": sid, "count": cnt, "selectable": cnt > 0})
+			return items
+		"harvest":
+			var items: Array = []
+			for key in ["sunflower", "carrot", "strawberry", "egg", "milk", "bacon"]:
+				var cnt = PlayerData.inventory.get(key, 0)
+				if cnt > 0:
+					items.append({"id": key, "count": cnt, "selectable": false})
+			return items
+		"supplies":
+			var items: Array = []
+			for key in ["fertilizer", "sprinkler", "animal_food"]:
+				var cnt = PlayerData.inventory.get(key, 0)
+				if cnt > 0:
+					items.append({"id": key, "count": cnt, "selectable": false})
+			return items
+		"livestock":
+			var counts: Dictionary = {}
+			for a in PlayerData.animals:
+				var t = a.get("type", "chicken")
+				counts[t] = counts.get(t, 0) + 1
+			var items: Array = []
+			for atype in counts:
+				items.append({"id": atype, "count": counts[atype], "selectable": false})
+			return items
+	return []
+
 func _rebuild_inventory_contents() -> void:
 	for child in _inventory_panel.get_children():
 		child.queue_free()
 	_inventory_tool_buttons.clear()
 
+	var panel_w = 420
+	var panel_h = 340
+	var panel_x = 270
+	var panel_y = 100
+
 	# Dim overlay
 	var dim = ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.4)
+	dim.color = Color(0, 0, 0, 0.45)
 	dim.size = Vector2(960, 540)
 	_inventory_panel.add_child(dim)
-
-	var panel_w = 400
-	var panel_x = 280
-	var row_y = 0
-
-	# Count rows
-	var tool_items = ["hand", "water_jug"]
-	var seed_items = ["sunflower_seeds", "carrot_seeds", "strawberry_seeds"]
-	var harvest_items: Array = []
-	for key in ["sunflower", "carrot", "strawberry", "egg", "milk", "bacon"]:
-		if PlayerData.inventory.get(key, 0) > 0:
-			harvest_items.append(key)
-	var supply_items: Array = []
-	for key in ["fertilizer", "sprinkler", "animal_food"]:
-		if PlayerData.inventory.get(key, 0) > 0:
-			supply_items.append(key)
-	var animal_counts: Dictionary = {}
-	for a in PlayerData.animals:
-		var t = a.get("type", "chicken")
-		animal_counts[t] = animal_counts.get(t, 0) + 1
-
-	var total_rows = tool_items.size() + seed_items.size() + harvest_items.size() + supply_items.size() + animal_counts.size()
-	var sections = 2
-	if harvest_items.size() > 0: sections += 1
-	if supply_items.size() > 0: sections += 1
-	if animal_counts.size() > 0: sections += 1
-	var panel_h = 54 + (total_rows * 36) + (sections * 26)
-	var panel_y = max(40, 270 - panel_h / 2)
 
 	# Panel border
 	var border = ColorRect.new()
@@ -362,125 +403,172 @@ func _rebuild_inventory_contents() -> void:
 
 	# Panel background
 	var bg = ColorRect.new()
-	bg.color = Color(0.1, 0.07, 0.03, 0.96)
+	bg.color = Color(0.12, 0.08, 0.04, 0.97)
 	bg.size = Vector2(panel_w, panel_h)
 	bg.position = Vector2(panel_x, panel_y)
 	_inventory_panel.add_child(bg)
 
-	# Title
+	# Title row with bag icon
+	var bag_tex = _load_icon("bag")
+	if bag_tex:
+		var bag_icon = TextureRect.new()
+		bag_icon.texture = bag_tex
+		bag_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		bag_icon.size = Vector2(24, 24)
+		bag_icon.position = Vector2(panel_x + 10, panel_y + 6)
+		_inventory_panel.add_child(bag_icon)
+
 	var title = Label.new()
 	title.text = "INVENTORY"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.3))
-	title.position = Vector2(panel_x, panel_y + 8)
-	title.size = Vector2(panel_w, 28)
+	title.position = Vector2(panel_x + 38, panel_y + 8)
+	title.size = Vector2(200, 24)
 	_inventory_panel.add_child(title)
 
-	# Separator under title
-	var sep = ColorRect.new()
-	sep.color = Color(0.5, 0.38, 0.18, 0.6)
-	sep.size = Vector2(panel_w - 24, 1)
-	sep.position = Vector2(panel_x + 12, panel_y + 34)
-	_inventory_panel.add_child(sep)
+	# Coins display with icon
+	var coin_tex = _load_icon("coin")
+	if coin_tex:
+		var coin_icon = TextureRect.new()
+		coin_icon.texture = coin_tex
+		coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		coin_icon.size = Vector2(20, 20)
+		coin_icon.position = Vector2(panel_x + panel_w - 120, panel_y + 8)
+		_inventory_panel.add_child(coin_icon)
+	var coins_lbl = Label.new()
+	coins_lbl.text = "%d" % PlayerData.coins
+	coins_lbl.add_theme_font_size_override("font_size", 16)
+	coins_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.2))
+	coins_lbl.position = Vector2(panel_x + panel_w - 96, panel_y + 8)
+	coins_lbl.size = Vector2(60, 22)
+	_inventory_panel.add_child(coins_lbl)
 
 	# Close button
-	var close_btn = GameManager.make_button("X", Vector2(panel_x + panel_w - 38, panel_y + 6), Vector2(30, 26), Color(0.5, 0.12, 0.1))
-	close_btn.add_theme_font_size_override("font_size", 13)
+	var close_btn = GameManager.make_button("X", Vector2(panel_x + panel_w - 32, panel_y + 6), Vector2(26, 24), Color(0.5, 0.12, 0.1))
+	close_btn.add_theme_font_size_override("font_size", 12)
 	close_btn.pressed.connect(_toggle_inventory)
 	_inventory_panel.add_child(close_btn)
 
-	row_y = panel_y + 42
+	# Tab bar
+	var tab_y = panel_y + 36
+	var tab_w = panel_w / INV_TABS.size()
+	for i in range(INV_TABS.size()):
+		var tab_id = INV_TABS[i]
+		var is_active = (tab_id == _inventory_tab)
+		var tab_color = Color(0.25, 0.18, 0.08) if not is_active else Color(0.35, 0.25, 0.1)
+		var btn = GameManager.make_button(INV_TAB_LABELS[tab_id], Vector2(panel_x + i * tab_w, tab_y), Vector2(tab_w, 28), tab_color)
+		btn.add_theme_font_size_override("font_size", 12)
+		if is_active:
+			btn.add_theme_color_override("font_color", Color(1.0, 0.88, 0.3))
+		var tid = tab_id
+		btn.pressed.connect(func():
+			_inventory_tab = tid
+			_rebuild_inventory_contents()
+		)
+		_inventory_panel.add_child(btn)
 
-	# Helper: section header
-	var _add_section = func(text: String) -> void:
-		var lbl = Label.new()
-		lbl.text = text
-		lbl.add_theme_font_size_override("font_size", 12)
-		lbl.add_theme_color_override("font_color", Color(0.6, 0.5, 0.35))
-		lbl.position = Vector2(panel_x + 14, row_y + 2)
-		lbl.size = Vector2(panel_w - 28, 18)
-		_inventory_panel.add_child(lbl)
-		row_y += 22
+	# Active tab underline
+	var underline = ColorRect.new()
+	underline.color = Color(1.0, 0.8, 0.2)
+	underline.size = Vector2(tab_w - 4, 2)
+	underline.position = Vector2(panel_x + INV_TABS.find(_inventory_tab) * tab_w + 2, tab_y + 28)
+	_inventory_panel.add_child(underline)
 
-	# Helper: item row with colored dot + name + count
-	var _add_item_row = func(item_id: String, label: String, count: int, dot_color: Color, selectable: bool) -> void:
-		var row_x = panel_x + 10
-		var row_w = panel_w - 20
+	# Content area
+	var content_y = tab_y + 34
+	var content_h = panel_h - (content_y - panel_y) - 8
+	var items = _get_tab_items(_inventory_tab)
 
-		# Colored dot indicator
-		var dot = ColorRect.new()
-		dot.color = dot_color
-		dot.size = Vector2(8, 8)
-		dot.position = Vector2(row_x + 6, row_y + 10)
-		_inventory_panel.add_child(dot)
+	if items.size() == 0:
+		var empty_lbl = Label.new()
+		empty_lbl.text = "Nothing here yet"
+		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_lbl.add_theme_font_size_override("font_size", 15)
+		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.4, 0.3))
+		empty_lbl.position = Vector2(panel_x, content_y + 40)
+		empty_lbl.size = Vector2(panel_w, 30)
+		_inventory_panel.add_child(empty_lbl)
+	else:
+		# Icon grid: 4 columns, icon 48x48 cell with label below
+		var grid_cols = 4
+		var cell_w = (panel_w - 20) / grid_cols
+		var cell_h = 80
+		for idx in range(items.size()):
+			var item = items[idx]
+			var col = idx % grid_cols
+			var row = idx / grid_cols
+			var cx = panel_x + 10 + col * cell_w
+			var cy = content_y + row * cell_h
 
-		# Build display text
-		var text = label
-		if item_id != "hand":
-			text += "  x%d" % count
+			var is_selected = (item["id"] == _current_tool) and item["selectable"]
 
-		if selectable:
-			var bg_color = Color(0.15, 0.42, 0.15) if _current_tool == item_id else Color(0.18, 0.13, 0.07)
-			var btn = GameManager.make_button(text, Vector2(row_x + 20, row_y), Vector2(row_w - 20, 30), bg_color)
-			btn.add_theme_font_size_override("font_size", 14)
-			var tid = item_id
-			btn.pressed.connect(func():
-				_set_tool(tid)
-				_toggle_inventory()
-			)
-			_inventory_panel.add_child(btn)
-			_inventory_tool_buttons.append(btn)
-		else:
-			var lbl = Label.new()
-			lbl.text = text
-			lbl.add_theme_font_size_override("font_size", 14)
-			lbl.add_theme_color_override("font_color", Color(0.82, 0.78, 0.65))
-			lbl.position = Vector2(row_x + 22, row_y + 5)
-			lbl.size = Vector2(row_w - 30, 22)
-			_inventory_panel.add_child(lbl)
+			# Cell background (highlight if selected or hoverable)
+			if item["selectable"]:
+				var cell_color = Color(0.18, 0.4, 0.18, 0.8) if is_selected else Color(0.2, 0.15, 0.08, 0.5)
+				var cell_btn = Button.new()
+				cell_btn.flat = true
+				var style = StyleBoxFlat.new()
+				style.bg_color = cell_color
+				style.corner_radius_top_left = 6
+				style.corner_radius_top_right = 6
+				style.corner_radius_bottom_left = 6
+				style.corner_radius_bottom_right = 6
+				cell_btn.add_theme_stylebox_override("normal", style)
+				var hover_style = StyleBoxFlat.new()
+				hover_style.bg_color = cell_color.lightened(0.15)
+				hover_style.corner_radius_top_left = 6
+				hover_style.corner_radius_top_right = 6
+				hover_style.corner_radius_bottom_left = 6
+				hover_style.corner_radius_bottom_right = 6
+				cell_btn.add_theme_stylebox_override("hover", hover_style)
+				cell_btn.position = Vector2(cx, cy)
+				cell_btn.size = Vector2(cell_w - 4, cell_h - 4)
+				var iid = item["id"]
+				cell_btn.pressed.connect(func():
+					_set_tool(iid)
+					_toggle_inventory()
+				)
+				_inventory_panel.add_child(cell_btn)
+				_inventory_tool_buttons.append(cell_btn)
 
-		row_y += 36
+			# Icon
+			var icon_tex = _load_icon(item["id"])
+			if icon_tex:
+				var icon_rect = TextureRect.new()
+				icon_rect.texture = icon_tex
+				icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				icon_rect.size = Vector2(40, 40)
+				icon_rect.position = Vector2(cx + (cell_w - 4) / 2 - 20, cy + 4)
+				icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				_inventory_panel.add_child(icon_rect)
 
-	# -- Tools --
-	_add_section.call("TOOLS")
-	_add_item_row.call("hand", "Hand", 1, ITEM_COLORS.get("hand", Color.WHITE), true)
-	var jug_count = PlayerData.inventory.get("water_jug", 0)
-	_add_item_row.call("water_jug", "Water Jug", jug_count, ITEM_COLORS.get("water_jug", Color.WHITE), jug_count > 0)
+			# Count badge (top-right of icon)
+			if item["id"] != "hand" and item["count"] > 0:
+				var count_lbl = Label.new()
+				count_lbl.text = "x%d" % item["count"]
+				count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+				count_lbl.add_theme_font_size_override("font_size", 11)
+				count_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 0.7))
+				count_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0))
+				count_lbl.add_theme_constant_override("shadow_offset_x", 1)
+				count_lbl.add_theme_constant_override("shadow_offset_y", 1)
+				count_lbl.position = Vector2(cx + cell_w - 46, cy + 4)
+				count_lbl.size = Vector2(38, 16)
+				count_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				_inventory_panel.add_child(count_lbl)
 
-	# -- Seeds --
-	_add_section.call("SEEDS")
-	for seed_id in seed_items:
-		var cnt = PlayerData.inventory.get(seed_id, 0)
-		var label = ITEM_LABELS.get(seed_id, seed_id)
-		var color = ITEM_COLORS.get(seed_id, Color.WHITE)
-		_add_item_row.call(seed_id, label, cnt, color, cnt > 0)
-
-	# -- Harvest --
-	if harvest_items.size() > 0:
-		_add_section.call("HARVEST  (sell at market)")
-		for item_id in harvest_items:
-			var cnt = PlayerData.inventory.get(item_id, 0)
-			var label = ITEM_LABELS.get(item_id, item_id)
-			var color = ITEM_COLORS.get(item_id, Color.WHITE)
-			_add_item_row.call(item_id, label, cnt, color, false)
-
-	# -- Supplies --
-	if supply_items.size() > 0:
-		_add_section.call("SUPPLIES")
-		for item_id in supply_items:
-			var cnt = PlayerData.inventory.get(item_id, 0)
-			var label = ITEM_LABELS.get(item_id, item_id)
-			var color = ITEM_COLORS.get(item_id, Color.WHITE)
-			_add_item_row.call(item_id, label, cnt, color, false)
-
-	# -- Livestock --
-	if animal_counts.size() > 0:
-		_add_section.call("LIVESTOCK")
-		for atype in animal_counts:
-			var label = ANIMAL_LABELS.get(atype, atype.capitalize())
-			var color = ANIMAL_COLORS.get(atype, Color(0.7, 0.6, 0.4))
-			_add_item_row.call(atype, label, animal_counts[atype], color, false)
+			# Item name below icon
+			var name_lbl = Label.new()
+			name_lbl.text = ITEM_LABELS.get(item["id"], item["id"].capitalize())
+			name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			name_lbl.add_theme_font_size_override("font_size", 10)
+			var name_color = Color(1.0, 0.95, 0.7) if is_selected else Color(0.7, 0.65, 0.5)
+			name_lbl.add_theme_color_override("font_color", name_color)
+			name_lbl.position = Vector2(cx, cy + 46)
+			name_lbl.size = Vector2(cell_w - 4, 28)
+			name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_inventory_panel.add_child(name_lbl)
 
 func _toggle_inventory() -> void:
 	_inventory_open = not _inventory_open
@@ -489,7 +577,7 @@ func _toggle_inventory() -> void:
 	_inventory_panel.visible = _inventory_open
 
 func _refresh_hud() -> void:
-	_hud_coins.text = "Coins: %d" % PlayerData.coins
+	_hud_coins.text = "%d" % PlayerData.coins
 	_hud_day.text = "Day %d" % PlayerData.day
 
 func _on_coins_changed(_val: int) -> void:

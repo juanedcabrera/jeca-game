@@ -38,23 +38,7 @@ const NPC_NAMES = {
 	"merchant": "Abuelo (Supplies)",
 }
 
-const ITEM_COLORS = {
-	"sunflower_seeds": Color(1.0, 0.85, 0.1),
-	"carrot_seeds": Color(1.0, 0.5, 0.1),
-	"strawberry_seeds": Color(0.9, 0.15, 0.2),
-	"chicken": Color(1.0, 0.85, 0.3),
-	"pig": Color(1.0, 0.7, 0.7),
-	"cow": Color(0.6, 0.4, 0.2),
-	"sprinkler": Color(0.3, 0.6, 1.0),
-	"fertilizer": Color(0.3, 0.75, 0.2),
-	"animal_food": Color(0.85, 0.7, 0.4),
-	"sunflower": Color(1.0, 0.85, 0.1),
-	"carrot": Color(1.0, 0.5, 0.1),
-	"strawberry": Color(0.9, 0.15, 0.2),
-	"egg": Color(1.0, 0.95, 0.8),
-	"bacon": Color(0.8, 0.3, 0.2),
-	"milk": Color(0.95, 0.95, 1.0),
-}
+const ICON_PATH = "res://generated_sprites/icons/"
 
 const SHOP_ITEMS = {
 	"seeds": [
@@ -273,7 +257,17 @@ func _build_hud() -> void:
 	hud_bg.z_index = 10
 	add_child(hud_bg)
 
-	_hud_coins = GameManager.make_label("Coins: %d" % PlayerData.coins, Vector2(814, 8), 15, Color(1.0, 0.9, 0.2))
+	# Coin icon in HUD
+	var coin_path = ICON_PATH + "coin.png"
+	if ResourceLoader.exists(coin_path):
+		var coin_icon = TextureRect.new()
+		coin_icon.texture = load(coin_path)
+		coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		coin_icon.size = Vector2(18, 18)
+		coin_icon.position = Vector2(810, 8)
+		coin_icon.z_index = 11
+		add_child(coin_icon)
+	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(830, 8), 15, Color(1.0, 0.9, 0.2))
 	_hud_coins.z_index = 11
 	add_child(_hud_coins)
 
@@ -517,19 +511,15 @@ func _add_item_row(item: Dictionary, row: int) -> void:
 	panel.position = Vector2(0, y)
 	_item_list_node.add_child(panel)
 
-	# Colored dot indicator
-	var dot = ColorRect.new()
-	var dot_color = ITEM_COLORS.get(item["id"], Color(0.6, 0.6, 0.6))
-	dot.color = dot_color
-	dot.size = Vector2(36, 36)
-	dot.position = Vector2(14, 20)
-	panel.add_child(dot)
-	var dot_border = ColorRect.new()
-	dot_border.color = dot_color.darkened(0.3)
-	dot_border.size = Vector2(38, 38)
-	dot_border.position = Vector2(13, 19)
-	dot_border.z_index = -1
-	panel.add_child(dot_border)
+	# Item icon
+	var icon_path = ICON_PATH + item["id"] + ".png"
+	if ResourceLoader.exists(icon_path):
+		var icon_rect = TextureRect.new()
+		icon_rect.texture = load(icon_path)
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.size = Vector2(48, 48)
+		icon_rect.position = Vector2(8, 14)
+		panel.add_child(icon_rect)
 
 	var name_lbl = Label.new()
 	name_lbl.text = item["name"]
@@ -619,19 +609,15 @@ func _add_sell_row(item: Dictionary, row: int) -> void:
 	panel.position = Vector2(0, y)
 	_item_list_node.add_child(panel)
 
-	# Colored dot indicator
-	var dot = ColorRect.new()
-	var dot_color = ITEM_COLORS.get(item["id"], Color(0.6, 0.6, 0.6))
-	dot.color = dot_color
-	dot.size = Vector2(36, 36)
-	dot.position = Vector2(14, 20)
-	panel.add_child(dot)
-	var dot_border = ColorRect.new()
-	dot_border.color = dot_color.darkened(0.3)
-	dot_border.size = Vector2(38, 38)
-	dot_border.position = Vector2(13, 19)
-	dot_border.z_index = -1
-	panel.add_child(dot_border)
+	# Item icon
+	var icon_path = ICON_PATH + item["id"] + ".png"
+	if ResourceLoader.exists(icon_path):
+		var icon_rect = TextureRect.new()
+		icon_rect.texture = load(icon_path)
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.size = Vector2(48, 48)
+		icon_rect.position = Vector2(8, 14)
+		panel.add_child(icon_rect)
 
 	var name_lbl = Label.new()
 	name_lbl.text = item["name"]
@@ -703,7 +689,7 @@ func _update_overlay_coins() -> void:
 	if _overlay_coins:
 		_overlay_coins.text = "%d coins" % PlayerData.coins
 	if _hud_coins:
-		_hud_coins.text = "Coins: %d" % PlayerData.coins
+		_hud_coins.text = "%d" % PlayerData.coins
 
 func _update_tab_highlight() -> void:
 	for tab_id in _tab_buttons:
