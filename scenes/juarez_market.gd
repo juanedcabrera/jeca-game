@@ -33,28 +33,40 @@ const NPC_TABS = {
 }
 
 const NPC_NAMES = {
-	"sofi":     "Sofi (Seeds)",
-	"lucas":    "Lucas (Livestock)",
-	"merchant": "Abuelo (Supplies)",
+	"sofi":     "Sofi",
+	"lucas":    "Lucas",
+	"merchant": "Abuelo",
+}
+
+const NPC_TITLES = {
+	"sofi":     "Sofi's Seeds",
+	"lucas":    "Lucas's Livestock",
+	"merchant": "Abuelo's Supplies",
+}
+
+const NPC_SPEECH = {
+	"sofi":     "Hi! I'm Sofi! Buy seeds to grow your farm!",
+	"lucas":    "Howdy! I'm Lucas! Animals earn you coins every day!",
+	"merchant": "Hola mijo! Abuelo has everything you need!",
 }
 
 const ICON_PATH = "res://generated_sprites/icons/"
 
 const SHOP_ITEMS = {
 	"seeds": [
-		{"id": "sunflower_seeds", "name": "Sofi's Sunflower Seeds", "cost": 5,  "label": "Sunflower Seeds", "desc": "Grows in 2 days, harvest sells for 6"},
-		{"id": "carrot_seeds",    "name": "Sofi's Carrot Seeds",    "cost": 8,  "label": "Carrot Seeds", "desc": "Grows in 3 days, harvest sells for 10"},
-		{"id": "strawberry_seeds","name": "Sofi's Strawberry Seeds","cost": 12, "label": "Strawberry Seeds", "desc": "Grows in 4 days, harvest sells for 16!"},
+		{"id": "sunflower_seeds", "name": "Sunflower Seeds", "cost": 5,  "desc": "Grows in 2 days, harvest sells for 6"},
+		{"id": "carrot_seeds",    "name": "Carrot Seeds",    "cost": 8,  "desc": "Grows in 3 days, harvest sells for 10"},
+		{"id": "strawberry_seeds","name": "Strawberry Seeds","cost": 12, "desc": "Grows in 4 days, harvest sells for 16!"},
 	],
 	"livestock": [
-		{"id": "chicken", "name": "Lucas's Chicken", "cost": 15, "label": "Chicken", "desc": "Produces eggs (sell for 2 each)"},
-		{"id": "pig",     "name": "Lucas's Pig",     "cost": 20, "label": "Pig", "desc": "Produces bacon (sell for 3 each)"},
-		{"id": "cow",     "name": "Lucas's Cow",     "cost": 30, "label": "Cow", "desc": "Produces milk (sell for 5 each)"},
+		{"id": "chicken", "name": "Chicken", "cost": 15, "desc": "Produces eggs (sell for 2 each)"},
+		{"id": "pig",     "name": "Pig",     "cost": 20, "desc": "Produces bacon (sell for 3 each)"},
+		{"id": "cow",     "name": "Cow",     "cost": 30, "desc": "Produces milk (sell for 5 each)"},
 	],
 	"tools": [
-		{"id": "sprinkler",   "name": "Sprinkler",    "cost": 40, "label": "Sprinkler", "desc": "Auto-waters all crops each day"},
-		{"id": "fertilizer",  "name": "Fertilizer",   "cost": 15, "label": "Fertilizer", "desc": "Speeds up crop growth by 1 day"},
-		{"id": "animal_food", "name": "Animal Food",  "cost": 8,  "label": "Feed", "desc": "Feed & water your livestock (1/day)"},
+		{"id": "sprinkler",   "name": "Sprinkler",    "cost": 40, "desc": "Auto-waters all crops each day"},
+		{"id": "fertilizer",  "name": "Fertilizer",   "cost": 15, "desc": "Speeds up crop growth by 1 day"},
+		{"id": "animal_food", "name": "Animal Food",  "cost": 8,  "desc": "Feed & water your livestock (1/day)"},
 	],
 }
 
@@ -74,7 +86,7 @@ const SELL_ITEMS = {
 
 var _mode: String = "walk"   # "walk" | "shop"
 var _active_npc: String = ""
-var _active_tab: String = "seeds"
+var _active_tab: String = "buy"   # "buy" | "sell"
 var _tab_buttons: Dictionary = {}
 
 var _player: CharacterBody2D
@@ -263,11 +275,11 @@ func _build_hud() -> void:
 		var coin_icon = TextureRect.new()
 		coin_icon.texture = load(coin_path)
 		coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		coin_icon.size = Vector2(14, 14)
-		coin_icon.position = Vector2(811, 10)
+		coin_icon.size = Vector2(12, 12)
+		coin_icon.position = Vector2(812, 10)
 		coin_icon.z_index = 11
 		add_child(coin_icon)
-	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(828, 8), 15, Color(1.0, 0.9, 0.2))
+	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(830, 8), 15, Color(1.0, 0.9, 0.2))
 	_hud_coins.z_index = 11
 	add_child(_hud_coins)
 
@@ -349,7 +361,7 @@ func _physics_process(delta: float) -> void:
 
 	_action_ribbon.visible = (_near_npc != "")
 	if _near_npc != "":
-		_action_label.text = "[E] Talk to " + NPC_NAMES.get(_near_npc, _near_npc)
+		_action_label.text = "[E] Talk to %s" % NPC_NAMES.get(_near_npc, _near_npc)
 
 # ── Shop Overlay ───────────────────────────────────────────────────────────────
 
@@ -406,21 +418,19 @@ func _build_shop_overlay() -> void:
 	speech_lbl.size = Vector2(880, 28)
 	_shop_overlay.add_child(speech_lbl)
 
-	# Tab buttons
-	var tabs = [
-		["seeds",     "Seeds (Sofi)",           Color(0.35, 0.55, 0.15)],
-		["livestock", "Livestock (Lucas)",       Color(0.55, 0.35, 0.15)],
-		["tools",     "Abuelo's Supplies",       Color(0.25, 0.35, 0.60)],
-	]
+	# Buy / Sell tab buttons
 	_tab_buttons.clear()
-	for i in range(tabs.size()):
-		var t = tabs[i]
-		var tab_id = t[0]
-		var btn = GameManager.make_button(t[1], Vector2(32 + i * 292, 122), Vector2(276, 46), t[2])
-		btn.add_theme_font_size_override("font_size", 17)
-		btn.pressed.connect(func(): _show_tab(tab_id))
-		_shop_overlay.add_child(btn)
-		_tab_buttons[tab_id] = btn
+	var buy_btn = GameManager.make_button("Buy", Vector2(32, 122), Vector2(430, 46), Color(0.2, 0.55, 0.2))
+	buy_btn.add_theme_font_size_override("font_size", 18)
+	buy_btn.pressed.connect(func(): _show_tab("buy"))
+	_shop_overlay.add_child(buy_btn)
+	_tab_buttons["buy"] = buy_btn
+
+	var sell_btn = GameManager.make_button("Sell", Vector2(470, 122), Vector2(430, 46), Color(0.6, 0.35, 0.08))
+	sell_btn.add_theme_font_size_override("font_size", 18)
+	sell_btn.pressed.connect(func(): _show_tab("sell"))
+	_shop_overlay.add_child(sell_btn)
+	_tab_buttons["sell"] = sell_btn
 
 	# Item list
 	_item_list_node = Control.new()
@@ -452,8 +462,16 @@ func _open_shop(npc_id: String) -> void:
 	_active_npc = npc_id
 	_action_ribbon.visible = false
 	_shop_overlay.visible = true
+	# Set overlay title to NPC name
+	var title_node = _shop_overlay.get_node_or_null("OverlayTitle")
+	if title_node:
+		title_node.text = NPC_TITLES.get(npc_id, "Shop")
+	# Set speech
+	var speech_lbl = _shop_overlay.get_node_or_null("SpeechLabel")
+	if speech_lbl:
+		speech_lbl.text = NPC_SPEECH.get(npc_id, "What can I help you with?")
 	_update_overlay_coins()
-	_show_tab(NPC_TABS.get(npc_id, "seeds"))
+	_show_tab("buy")
 	_update_inv_label()
 
 func _close_shop() -> void:
@@ -465,43 +483,32 @@ func _show_tab(tab: String) -> void:
 	_clear_items()
 	_update_tab_highlight()
 
-	var speech_texts = {
-		"seeds":     "Hi! I'm Sofi! Buy seeds to grow your farm!",
-		"livestock": "Howdy! I'm Lucas! Animals earn you coins every day!",
-		"tools":     "Hola mijo! Abuelo has everything you need!",
-	}
-	var speech_lbl = _shop_overlay.get_node_or_null("SpeechLabel")
-	if speech_lbl:
-		speech_lbl.text = speech_texts.get(tab, "What can I help you with?")
+	var category = NPC_TABS.get(_active_npc, "seeds")
 
-	var row_idx = 0
-	for i in range(SHOP_ITEMS.get(tab, []).size()):
-		_add_item_row(SHOP_ITEMS[tab][i], row_idx)
-		row_idx += 1
-
-	# Sell section (if this NPC buys items)
-	var sell_list = SELL_ITEMS.get(tab, [])
-	var has_sellable = false
-	for sell_item in sell_list:
-		if PlayerData.get_item_count(sell_item["id"]) > 0:
-			has_sellable = true
-			break
-	if has_sellable:
-		# Sell header
-		var sell_header = Label.new()
-		sell_header.text = "── Sell to %s ──" % NPC_NAMES.get(_active_npc, "NPC").split("(")[0].strip_edges()
-		sell_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		sell_header.add_theme_font_size_override("font_size", 16)
-		sell_header.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
-		sell_header.position = Vector2(0, row_idx * 84 + 10)
-		sell_header.size = Vector2(860, 28)
-		_item_list_node.add_child(sell_header)
-		row_idx += 1
-		# Sell rows
+	if tab == "buy":
+		var row_idx = 0
+		for item in SHOP_ITEMS.get(category, []):
+			_add_item_row(item, row_idx)
+			row_idx += 1
+	else:
+		# Sell tab
+		var sell_list = SELL_ITEMS.get(category, [])
+		var row_idx = 0
+		var has_any = false
 		for sell_item in sell_list:
 			if PlayerData.get_item_count(sell_item["id"]) > 0:
 				_add_sell_row(sell_item, row_idx)
 				row_idx += 1
+				has_any = true
+		if not has_any:
+			var empty_lbl = Label.new()
+			empty_lbl.text = "Nothing to sell right now. Grow crops or tend animals first!"
+			empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			empty_lbl.add_theme_font_size_override("font_size", 16)
+			empty_lbl.add_theme_color_override("font_color", Color(0.4, 0.3, 0.1))
+			empty_lbl.position = Vector2(0, 40)
+			empty_lbl.size = Vector2(860, 30)
+			_item_list_node.add_child(empty_lbl)
 
 func _add_item_row(item: Dictionary, row: int) -> void:
 	var y = row * 84
@@ -692,10 +699,10 @@ func _update_overlay_coins() -> void:
 		_hud_coins.text = "%d" % PlayerData.coins
 
 func _update_tab_highlight() -> void:
+	var base_colors = {"buy": Color(0.2, 0.55, 0.2), "sell": Color(0.6, 0.35, 0.08)}
 	for tab_id in _tab_buttons:
 		var btn = _tab_buttons[tab_id]
-		var base_colors = {"seeds": Color(0.35,0.55,0.15), "livestock": Color(0.55,0.35,0.15), "tools": Color(0.25,0.35,0.60)}
-		var color = base_colors.get(tab_id, Color(0.3,0.3,0.3))
+		var color = base_colors.get(tab_id, Color(0.3, 0.3, 0.3))
 		if tab_id == _active_tab:
 			color = color.lightened(0.25)
 		var style = StyleBoxFlat.new()
