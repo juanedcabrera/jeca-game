@@ -314,21 +314,79 @@ func _interact() -> void:
 				_transitioning = true
 				_go_to_farm()
 
+var _sleep_overlay: ColorRect
+var _sleep_label: Label
+
 func _do_sleep() -> void:
 	_sleeping = true
 	_interact_ribbon.visible = false
+	_dialogue_box.visible = false
+
+	# Create full-screen overlay for sleep animation
+	_sleep_overlay = ColorRect.new()
+	_sleep_overlay.color = Color(0, 0, 0, 0)
+	_sleep_overlay.size = Vector2(960, 540)
+	_sleep_overlay.z_index = 100
+	add_child(_sleep_overlay)
+
+	_sleep_label = Label.new()
+	_sleep_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sleep_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_sleep_label.add_theme_font_size_override("font_size", 36)
+	_sleep_label.add_theme_color_override("font_color", Color(1, 1, 1, 0))
+	_sleep_label.position = Vector2(0, 0)
+	_sleep_label.size = Vector2(960, 540)
+	_sleep_label.z_index = 101
+	add_child(_sleep_label)
+
+	# Phase 1: Fade to dark (1.2s)
+	var fade_out = create_tween()
+	fade_out.tween_property(_sleep_overlay, "color", Color(0, 0, 0.05, 1.0), 1.2)
+	fade_out.tween_callback(_sleep_phase_night)
+
+func _sleep_phase_night() -> void:
+	# Show sleep text
+	_sleep_label.text = "💤 Good night, %s..." % PlayerData.player_name
+	_sleep_label.add_theme_color_override("font_color", Color(0.7, 0.75, 1.0))
+
+	# Advance the day and save
 	PlayerData.advance_day()
 	PlayerData.save_game()
+
+	# Hold dark for 1.5s then transition to morning
+	var hold = create_tween()
+	hold.tween_interval(1.5)
+	hold.tween_callback(_sleep_phase_dawn)
+
+func _sleep_phase_dawn() -> void:
+	# Change text to morning
+	_sleep_label.text = "☀️ Day %d" % PlayerData.day
+	_sleep_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.7))
+
+	# Fade overlay to warm sunrise tint then clear
+	var dawn = create_tween()
+	dawn.tween_property(_sleep_overlay, "color", Color(1.0, 0.85, 0.5, 0.6), 0.8)
+	dawn.tween_interval(1.0)
+	dawn.tween_property(_sleep_overlay, "color", Color(1.0, 0.95, 0.8, 0.0), 0.8)
+	dawn.tween_callback(_sleep_phase_done)
+
+func _sleep_phase_done() -> void:
+	# Clean up overlay
+	if _sleep_overlay:
+		_sleep_overlay.queue_free()
+		_sleep_overlay = null
+	if _sleep_label:
+		_sleep_label.queue_free()
+		_sleep_label = null
+
+	# Show morning dialogue then go to farm
 	_dialogue_lines = [
-		"💤 Zzz... Good night, %s!" % PlayerData.player_name,
-		"☀️  Good morning! It is now Day %d." % PlayerData.day,
 		"Your crops grew overnight. Don't forget to water them!",
 	]
 	_dialogue_index = 0
 	_dialogue_label.text = _dialogue_lines[0]
 	_dialogue_box.visible = true
 	_in_dialogue = true
-	# Override continue to go outside after sleep dialogue
 	if _continue_btn.pressed.is_connected(_advance_dialogue):
 		_continue_btn.pressed.disconnect(_advance_dialogue)
 	if not _continue_btn.pressed.is_connected(_advance_sleep_dialogue):
