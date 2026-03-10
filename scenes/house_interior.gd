@@ -303,6 +303,8 @@ func _check_nearby() -> void:
 		_interact_ribbon.visible = false
 
 func _interact() -> void:
+	if _sleeping:
+		return
 	if _in_dialogue:
 		_advance_dialogue()
 		return

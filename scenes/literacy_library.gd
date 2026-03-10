@@ -36,7 +36,7 @@ const PLAYER_SPEED           = 150
 const BOOKSHELF_INTERACT_DIST = 110.0
 const READING_UNLOCK_THRESHOLD  = 15   # words_read needed to unlock Reading
 const SPELLING_UNLOCK_THRESHOLD = 30   # words_read needed to unlock Spelling
-const LETTER_MASTERY_GOAL       = 5    # correct per letter to master it
+const LETTER_MASTERY_GOAL       = 2    # consecutive correct needed to master a letter
 const WRITING_COINS             = 3    # coins per correct writing answer
 
 # Bookshelf sprite centers (interaction points)
@@ -713,7 +713,7 @@ func _show_game_menu() -> void:
 		_puzzle_overlay.add_child(_tag(writing_btn))
 	else:
 		var mastered = _mastered_letter_count()
-		var letters_text = "ABC Letters  (%d/26)" % mastered
+		var letters_text = "ABC Letters" if mastered == 0 else "ABC Letters  (%d/26)" % mastered
 		var letters_btn = GameManager.make_button(letters_text, Vector2(310, btn_y), Vector2(340, 56), Color(0.75, 0.2, 0.2))
 		letters_btn.add_theme_font_size_override("font_size", 24)
 		letters_btn.pressed.connect(func(): _start_letters_game())
@@ -880,7 +880,7 @@ func _check_letter(btn_idx: int) -> void:
 		_session_coins_earned += 3
 		_hud_coins.text = "Coins: %d" % PlayerData.coins
 
-		# Track letter mastery
+		# Track letter mastery (consecutive streak — resets on wrong answer)
 		var upper_letter = _current_letter[0]
 		PlayerData.letter_mastery[upper_letter] = PlayerData.letter_mastery.get(upper_letter, 0) + 1
 
@@ -894,6 +894,9 @@ func _check_letter(btn_idx: int) -> void:
 		var correct_lower = _current_letter[0].to_lower()
 		_feedback_label.text = "Not quite! The answer was '%s'" % correct_lower.to_upper()
 		_feedback_label.add_theme_color_override("font_color", Color(0.9, 0.45, 0.1))
+		# Reset streak for this letter
+		var upper_letter = _current_letter[0]
+		PlayerData.letter_mastery[upper_letter] = 0
 
 	_rounds_done += 1
 	var timer = get_tree().create_timer(1.8)
