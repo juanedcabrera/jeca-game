@@ -263,11 +263,11 @@ func _build_hud() -> void:
 		var coin_icon = TextureRect.new()
 		coin_icon.texture = load(coin_path)
 		coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		coin_icon.size = Vector2(18, 18)
-		coin_icon.position = Vector2(810, 8)
+		coin_icon.size = Vector2(14, 14)
+		coin_icon.position = Vector2(811, 10)
 		coin_icon.z_index = 11
 		add_child(coin_icon)
-	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(830, 8), 15, Color(1.0, 0.9, 0.2))
+	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(828, 8), 15, Color(1.0, 0.9, 0.2))
 	_hud_coins.z_index = 11
 	add_child(_hud_coins)
 

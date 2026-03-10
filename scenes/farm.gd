@@ -278,11 +278,11 @@ func _build_hud() -> void:
 		var coin_icon = TextureRect.new()
 		coin_icon.texture = coin_tex
 		coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		coin_icon.size = Vector2(18, 18)
-		coin_icon.position = Vector2(810, 6)
+		coin_icon.size = Vector2(14, 14)
+		coin_icon.position = Vector2(811, 8)
 		coin_icon.z_index = 11
 		add_child(coin_icon)
-	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(830, 6), 15, Color(1.0, 0.9, 0.2))
+	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(828, 6), 15, Color(1.0, 0.9, 0.2))
 	_hud_coins.z_index = 11
 	add_child(_hud_coins)
 
@@ -1295,22 +1295,36 @@ class _PathDrawer extends Node2D:
 
 
 class _DirectionSigns extends Node2D:
+	var _sign_icons: Dictionary = {}
+
+	func _ready() -> void:
+		var icon_path = "res://generated_sprites/icons/"
+		for key in ["pickaxe", "shop", "book"]:
+			var path = icon_path + key + ".png"
+			if ResourceLoader.exists(path):
+				_sign_icons[key] = load(path)
+
 	func _draw() -> void:
 		var post  = Color(0.45, 0.28, 0.10)
 		var plank = Color(0.62, 0.42, 0.18)
 		var txt   = Color(0.15, 0.08, 0.02)
 
 		# North sign (Math Mines) — top center path
-		_draw_sign(Vector2(480, 116), "Math Mines", post, plank, txt)
+		_draw_sign(Vector2(480, 116), "Mines", post, plank, txt, _sign_icons.get("pickaxe"))
 		# South sign (Juarez Market) — bottom center path
-		_draw_sign(Vector2(480, 448), "Market", post, plank, txt)
+		_draw_sign(Vector2(480, 448), "Market", post, plank, txt, _sign_icons.get("shop"))
 		# East sign (Literacy Library) — right path
-		_draw_sign(Vector2(890, 300), "Library", post, plank, txt)
+		_draw_sign(Vector2(890, 300), "Library", post, plank, txt, _sign_icons.get("book"))
 
-	func _draw_sign(pos: Vector2, label: String, post: Color, plank: Color, txt: Color) -> void:
+	func _draw_sign(pos: Vector2, label: String, post: Color, plank: Color, txt: Color, icon: Texture2D = null) -> void:
 		# Post
 		draw_rect(Rect2(pos + Vector2(-3, -4), Vector2(6, 30)), post)
 		# Plank
-		draw_rect(Rect2(pos + Vector2(-46, -20), Vector2(92, 20)), plank)
-		draw_string(ThemeDB.fallback_font, pos + Vector2(-42, -6),
-			label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, txt)
+		draw_rect(Rect2(pos + Vector2(-52, -20), Vector2(104, 20)), plank)
+		if icon:
+			draw_texture_rect(icon, Rect2(pos + Vector2(-48, -18), Vector2(16, 16)), false)
+			draw_string(ThemeDB.fallback_font, pos + Vector2(-30, -6),
+				label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, txt)
+		else:
+			draw_string(ThemeDB.fallback_font, pos + Vector2(-46, -6),
+				label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, txt)
