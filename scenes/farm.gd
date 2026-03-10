@@ -46,6 +46,9 @@ var _inventory_panel: Control
 var _inventory_tool_buttons: Array = []
 var _inventory_tab: String = "tools"  # tools | seeds | harvest | supplies | livestock
 var _farm_tile_drawers: Array = []
+var _plot_drawer: Node2D
+var _equipped_label: Label
+var _equipped_icon: TextureRect
 
 # ── State ─────────────────────────────────────────────────────────────────────
 var _current_tool: String = "hand"   # hand | water_jug | seeds
@@ -100,9 +103,9 @@ func _build_world() -> void:
 	add_child(path_drawer)
 
 	# Farm plot background with border
-	var plot_drawer = _FarmPlotDrawer.new()
-	plot_drawer.position = GRID_ORIGIN - Vector2(14, 14)
-	add_child(plot_drawer)
+	_plot_drawer = _FarmPlotDrawer.new()
+	_plot_drawer.position = GRID_ORIGIN - Vector2(14, 14)
+	add_child(_plot_drawer)
 
 	# Farm tile drawers
 	for i in range(GRID_COLS * GRID_ROWS):
@@ -278,11 +281,11 @@ func _build_hud() -> void:
 		var coin_icon = TextureRect.new()
 		coin_icon.texture = coin_tex
 		coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		coin_icon.size = Vector2(12, 12)
-		coin_icon.position = Vector2(812, 10)
+		coin_icon.size = Vector2(8, 8)
+		coin_icon.position = Vector2(814, 11)
 		coin_icon.z_index = 11
 		add_child(coin_icon)
-	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(830, 8), 15, Color(1.0, 0.9, 0.2))
+	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(826, 8), 15, Color(1.0, 0.9, 0.2))
 	_hud_coins.size = Vector2(120, 20)
 	_hud_coins.z_index = 11
 	add_child(_hud_coins)
@@ -308,6 +311,21 @@ func _build_hud() -> void:
 	chest_btn.pressed.connect(_toggle_inventory)
 	add_child(chest_btn)
 
+	# Equipped item indicator
+	_equipped_icon = TextureRect.new()
+	_equipped_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_equipped_icon.size = Vector2(16, 16)
+	_equipped_icon.position = Vector2(810, 84)
+	_equipped_icon.z_index = 11
+	add_child(_equipped_icon)
+	_equipped_label = Label.new()
+	_equipped_label.add_theme_font_size_override("font_size", 11)
+	_equipped_label.add_theme_color_override("font_color", Color(0.9, 0.85, 0.6))
+	_equipped_label.position = Vector2(828, 84)
+	_equipped_label.size = Vector2(120, 18)
+	_equipped_label.z_index = 11
+	add_child(_equipped_label)
+
 const ITEM_LABELS = {
 	"hand": "Hand", "water_jug": "Water Jug",
 	"sunflower_seeds": "Sunflwr Seed", "carrot_seeds": "Carrot Seed", "strawberry_seeds": "Straw Seed",
@@ -327,7 +345,7 @@ const INV_TAB_LABELS = {
 }
 
 # Items that can be selected as tools/seeds
-const SELECTABLE_ITEMS = ["hand", "water_jug", "sunflower_seeds", "carrot_seeds", "strawberry_seeds"]
+const SELECTABLE_ITEMS = ["hand", "water_jug", "sunflower_seeds", "carrot_seeds", "strawberry_seeds", "fertilizer", "sprinkler"]
 
 func _build_tool_bar() -> void:
 	_inventory_panel = Control.new()
@@ -346,13 +364,15 @@ func _get_tab_items(tab: String) -> Array:
 		"tools":
 			var items = [{"id": "hand", "count": 1, "selectable": true}]
 			var jug = PlayerData.inventory.get("water_jug", 0)
-			items.append({"id": "water_jug", "count": jug, "selectable": jug > 0})
+			if jug > 0:
+				items.append({"id": "water_jug", "count": jug, "selectable": true})
 			return items
 		"seeds":
 			var items: Array = []
 			for sid in ["sunflower_seeds", "carrot_seeds", "strawberry_seeds"]:
 				var cnt = PlayerData.inventory.get(sid, 0)
-				items.append({"id": sid, "count": cnt, "selectable": cnt > 0})
+				if cnt > 0:
+					items.append({"id": sid, "count": cnt, "selectable": true})
 			return items
 		"harvest":
 			var items: Array = []
@@ -366,7 +386,8 @@ func _get_tab_items(tab: String) -> Array:
 			for key in ["fertilizer", "sprinkler", "animal_food"]:
 				var cnt = PlayerData.inventory.get(key, 0)
 				if cnt > 0:
-					items.append({"id": key, "count": cnt, "selectable": false})
+					var selectable = key in ["fertilizer", "sprinkler"]
+					items.append({"id": key, "count": cnt, "selectable": selectable})
 			return items
 		"livestock":
 			var counts: Dictionary = {}
@@ -433,14 +454,14 @@ func _rebuild_inventory_contents() -> void:
 		var coin_icon = TextureRect.new()
 		coin_icon.texture = coin_tex
 		coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		coin_icon.size = Vector2(20, 20)
-		coin_icon.position = Vector2(panel_x + panel_w - 120, panel_y + 8)
+		coin_icon.size = Vector2(12, 12)
+		coin_icon.position = Vector2(panel_x + panel_w - 110, panel_y + 12)
 		_inventory_panel.add_child(coin_icon)
 	var coins_lbl = Label.new()
 	coins_lbl.text = "%d" % PlayerData.coins
 	coins_lbl.add_theme_font_size_override("font_size", 16)
 	coins_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.2))
-	coins_lbl.position = Vector2(panel_x + panel_w - 96, panel_y + 8)
+	coins_lbl.position = Vector2(panel_x + panel_w - 94, panel_y + 8)
 	coins_lbl.size = Vector2(60, 22)
 	_inventory_panel.add_child(coins_lbl)
 
@@ -580,6 +601,12 @@ func _toggle_inventory() -> void:
 func _refresh_hud() -> void:
 	_hud_coins.text = "%d" % PlayerData.coins
 	_hud_day.text = "Day %d" % PlayerData.day
+	# Update equipped item indicator
+	if _equipped_label:
+		_equipped_label.text = ITEM_LABELS.get(_current_tool, _current_tool.capitalize())
+	if _equipped_icon:
+		var tex = _load_icon(_current_tool)
+		_equipped_icon.texture = tex
 
 func _on_coins_changed(_val: int) -> void:
 	_refresh_hud()
@@ -593,6 +620,12 @@ func _set_tool(tool_id: String) -> void:
 		_selected_seed = tool_id
 	if tool_id == "water_jug" and not PlayerData.has_item("water_jug"):
 		GameManager.show_message(self, "You need a Water Jug!\nBuy one at the Juarez Market.")
+		return
+	if tool_id == "fertilizer" and not PlayerData.has_item("fertilizer"):
+		GameManager.show_message(self, "You don't have Fertilizer!\nBuy some at the Juarez Market.")
+		return
+	if tool_id == "sprinkler" and not PlayerData.has_item("sprinkler"):
+		GameManager.show_message(self, "You don't have a Sprinkler!\nBuy one at the Juarez Market.")
 		return
 	_current_tool = tool_id
 	_refresh_hud()
@@ -717,6 +750,10 @@ func _check_nearby() -> void:
 		_near_zone = "pen"
 
 func _update_action_popup() -> void:
+	if _current_tool == "sprinkler" and _near_tile >= 0:
+		_action_popup.visible = true
+		_action_label.text = "[E] Place Sprinkler here"
+		return
 	if _near_tile >= 0:
 		_action_popup.visible = true
 		var tile = PlayerData.farm_tiles[_near_tile]
@@ -730,12 +767,15 @@ func _update_action_popup() -> void:
 				else:
 					_action_label.text = "[E] Select seeds to plant"
 			"planted":
-				if tile["watered"] and PlayerData.has_item("fertilizer"):
-					_action_label.text = "[E] Use Fertilizer (+1 growth)"
-				elif tile["watered"]:
-					_action_label.text = "Already watered today!"
+				if _current_tool == "fertilizer":
+					_action_label.text = "[E] Apply Fertilizer"
+				elif _current_tool == "water_jug":
+					if tile["watered"]:
+						_action_label.text = "Already watered today!"
+					else:
+						_action_label.text = "[E] Water"
 				else:
-					_action_label.text = "[E] Water this crop"
+					_action_label.text = "Equip Water Jug or Fertilizer"
 			"ready":
 				_action_label.text = "[E] Harvest!"
 	elif _near_zone == "pen":
@@ -763,6 +803,21 @@ func _interact() -> void:
 			GameManager.change_scene("house_interior")
 
 func _interact_with_tile(idx: int) -> void:
+	# Sprinkler placement — check before tile state
+	if _current_tool == "sprinkler":
+		var corner = _get_nearest_corner(idx)
+		if PlayerData.place_sprinkler(corner.x, corner.y):
+			_current_tool = "hand"
+			_refresh_hud()
+			for td in _farm_tile_drawers:
+				td.queue_redraw()
+			if _plot_drawer:
+				_plot_drawer.queue_redraw()
+			GameManager.show_message(self, "Sprinkler placed! It waters nearby tiles each day.", 2.5)
+		else:
+			GameManager.show_message(self, "Already a sprinkler here!", 1.5)
+		return
+
 	var tile = PlayerData.farm_tiles[idx]
 	match tile["state"]:
 		"empty":
@@ -777,30 +832,48 @@ func _interact_with_tile(idx: int) -> void:
 				else:
 					GameManager.show_message(self, "No seeds! Buy some at\nthe Juarez Market.", 2.0)
 			else:
-				GameManager.show_message(self, "Select your seeds first! (Keys 3-5)", 1.8)
+				GameManager.show_message(self, "Select your seeds first!", 1.8)
 		"planted":
-			if tile["watered"] and PlayerData.has_item("fertilizer"):
-				# Fertilizer: boost growth by 1 (consumed)
+			if _current_tool == "fertilizer":
 				PlayerData.use_item("fertilizer")
 				tile["growth"] += 1
 				if tile["growth"] >= tile["max_growth"]:
 					tile["state"] = "ready"
+				_current_tool = "hand"
+				_refresh_hud()
 				_refresh_tile_drawer(idx)
 				GameManager.show_message(self, "Fertilized! Growth boosted!", 1.5)
-			elif _current_tool == "water_jug" or PlayerData.has_item("water_jug"):
+			elif _current_tool == "water_jug":
 				if PlayerData.water_tile(idx):
 					_refresh_tile_drawer(idx)
 					GameManager.show_message(self, "Watered! Come back tomorrow.", 1.5)
 				else:
 					GameManager.show_message(self, "Already watered today!", 1.2)
 			else:
-				GameManager.show_message(self, "You need a Water Jug!\nBuy one at the market.", 2.0)
+				GameManager.show_message(self, "Equip a tool first!\nOpen inventory [I] to equip.", 2.0)
 		"ready":
 			var crop = PlayerData.harvest_tile(idx)
 			if crop != "":
 				_refresh_tile_drawer(idx)
 				var harvest_names = {"sunflower_seeds": "Sunflower", "carrot_seeds": "Carrot", "strawberry_seeds": "Strawberry"}
 				GameManager.show_message(self, "Harvested! +1 %s!\nSell at Sofi's in the market." % harvest_names.get(crop, "crop"), 2.5)
+
+func _get_nearest_corner(tile_idx: int) -> Vector2i:
+	# Given a tile index, find the nearest corner in the 5x4 corner grid
+	var col: int = tile_idx % GRID_COLS
+	var row: int = int(tile_idx / GRID_COLS)
+	var tile_center = GRID_ORIGIN + Vector2(col * TILE_SIZE + TILE_SIZE * 0.5, row * TILE_SIZE + TILE_SIZE * 0.5)
+	var best_corner = Vector2i(col, row)
+	var best_dist = 99999.0
+	# Corners are at grid intersections: (0..GRID_COLS, 0..GRID_ROWS)
+	for cx in range(GRID_COLS + 1):
+		for cy in range(GRID_ROWS + 1):
+			var corner_pos = GRID_ORIGIN + Vector2(cx * TILE_SIZE, cy * TILE_SIZE)
+			var dist = _player.position.distance_to(corner_pos)
+			if dist < best_dist:
+				best_dist = dist
+				best_corner = Vector2i(cx, cy)
+	return best_corner
 
 func _refresh_tile_drawer(idx: int) -> void:
 	if idx < _farm_tile_drawers.size():
@@ -836,15 +909,14 @@ func _tend_animals() -> void:
 	GameManager.show_message(self, "Fed & tended! Got: %s\nSell at Lucas's in the market." % ", ".join(product_names), 2.5)
 
 func _advance_day() -> void:
-	var had_sprinkler = PlayerData.has_item("sprinkler")
 	PlayerData.advance_day()
 	PlayerData.save_game()
 	_refresh_hud()
 	# Refresh all tile drawers
 	for td in _farm_tile_drawers:
 		td.queue_redraw()
-	if had_sprinkler:
-		GameManager.show_message(self, "Day %d! Sprinkler watered all crops!" % PlayerData.day, 2.5)
+	if PlayerData.sprinkler_positions.size() > 0:
+		GameManager.show_message(self, "Day %d! Sprinklers watered nearby crops!" % PlayerData.day, 2.5)
 	else:
 		GameManager.show_message(self, "Good night! Day %d begins." % PlayerData.day, 2.5)
 
@@ -865,6 +937,24 @@ class _FarmPlotDrawer extends Node2D:
 		draw_rect(Rect2(w - 10, 0, 10, 10), post)
 		draw_rect(Rect2(0, h - 10, 10, 10), post)
 		draw_rect(Rect2(w - 10, h - 10, 10, 10), post)
+		# Draw placed sprinklers at corner positions
+		for sp in PlayerData.sprinkler_positions:
+			var cx: int = sp[0]
+			var cy: int = sp[1]
+			# Corner position relative to this drawer (offset by 14 for the border)
+			var corner_pos = Vector2(14 + cx * TILE_SIZE, 14 + cy * TILE_SIZE)
+			# Blue circle for sprinkler
+			draw_circle(corner_pos, 6, Color(0.2, 0.5, 0.9, 0.9))
+			draw_circle(corner_pos, 3, Color(0.5, 0.8, 1.0, 0.9))
+			# Spray lines extending to covered tiles
+			var spray_color = Color(0.4, 0.7, 1.0, 0.4)
+			for dx in [-1, 0]:
+				for dy in [-1, 0]:
+					var gx = cx + dx
+					var gy = cy + dy
+					if gx >= 0 and gx < GRID_COLS and gy >= 0 and gy < GRID_ROWS:
+						var tile_center = Vector2(14 + gx * TILE_SIZE + TILE_SIZE * 0.5, 14 + gy * TILE_SIZE + TILE_SIZE * 0.5)
+						draw_line(corner_pos, tile_center, spray_color, 1.5)
 
 
 class FarmTileDrawer extends Node2D:

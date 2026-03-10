@@ -34,6 +34,7 @@ var farm_tiles: Array = []
 # Animals: array of dicts with keys: type, name, happiness
 var animals: Array = []
 var animals_tended_today: bool = false
+var sprinkler_positions: Array = []  # Array of [cx, cy] corner positions
 
 # Progress
 var day: int = 1
@@ -90,6 +91,7 @@ func reset() -> void:
 	}
 	animals = []
 	animals_tended_today = false
+	sprinkler_positions = []
 	day = 1
 	math_problems_solved = 0
 	math_addition_solved = 0
@@ -136,14 +138,41 @@ func has_item(item_id: String) -> bool:
 func get_item_count(item_id: String) -> int:
 	return inventory.get(item_id, 0)
 
+func place_sprinkler(cx: int, cy: int) -> bool:
+	for pos in sprinkler_positions:
+		if pos[0] == cx and pos[1] == cy:
+			return false  # already placed here
+	if not use_item("sprinkler"):
+		return false
+	sprinkler_positions.append([cx, cy])
+	return true
+
+func get_sprinkler_covered_tiles() -> Array:
+	var covered: Array = []
+	for pos in sprinkler_positions:
+		var cx: int = pos[0]
+		var cy: int = pos[1]
+		# Corner (cx, cy) touches tiles at grid positions:
+		# (cx-1, cy-1), (cx, cy-1), (cx-1, cy), (cx, cy)
+		for dx in [-1, 0]:
+			for dy in [-1, 0]:
+				var gx = cx + dx
+				var gy = cy + dy
+				if gx >= 0 and gx < 4 and gy >= 0 and gy < 3:
+					var idx = gy * 4 + gx
+					if idx not in covered:
+						covered.append(idx)
+	return covered
+
 func advance_day() -> void:
 	day += 1
 	animals_tended_today = false
-	# Sprinkler: auto-water all planted crops at start of new day
-	if has_item("sprinkler"):
-		for tile in farm_tiles:
-			if tile["state"] == "planted":
-				tile["watered"] = true
+	# Sprinkler: water tiles covered by placed sprinklers
+	if sprinkler_positions.size() > 0:
+		var covered = get_sprinkler_covered_tiles()
+		for idx in covered:
+			if farm_tiles[idx]["state"] == "planted":
+				farm_tiles[idx]["watered"] = true
 	# Grow all planted crops
 	for tile in farm_tiles:
 		if tile["state"] == "planted":
@@ -232,6 +261,7 @@ func save_game() -> void:
 		"animals_tended_today": animals_tended_today,
 		"player_age": player_age,
 		"game_started": game_started,
+		"sprinkler_positions": sprinkler_positions,
 	}
 	# Local save (instant, works offline)
 	var file = FileAccess.open(_slot_path(current_slot), FileAccess.WRITE)
@@ -280,6 +310,7 @@ func load_slot(slot: int) -> bool:
 			and math_problems_solved > 0:
 		math_addition_solved = math_problems_solved
 	game_started = data.get("game_started", true)
+	sprinkler_positions = data.get("sprinkler_positions", [])
 	return true
 
 # Returns a lightweight preview dict for a slot without loading it into memory.

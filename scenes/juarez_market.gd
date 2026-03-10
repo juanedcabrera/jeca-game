@@ -64,7 +64,7 @@ const SHOP_ITEMS = {
 		{"id": "cow",     "name": "Cow",     "cost": 30, "desc": "Produces milk (sell for 5 each)"},
 	],
 	"tools": [
-		{"id": "sprinkler",   "name": "Sprinkler",    "cost": 40, "desc": "Auto-waters all crops each day"},
+		{"id": "sprinkler",   "name": "Sprinkler",    "cost": 40, "desc": "Place at tile corners — waters 4 surrounding tiles daily"},
 		{"id": "fertilizer",  "name": "Fertilizer",   "cost": 15, "desc": "Speeds up crop growth by 1 day"},
 		{"id": "animal_food", "name": "Animal Food",  "cost": 8,  "desc": "Feed & water your livestock (1/day)"},
 	],
@@ -275,11 +275,11 @@ func _build_hud() -> void:
 		var coin_icon = TextureRect.new()
 		coin_icon.texture = load(coin_path)
 		coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		coin_icon.size = Vector2(12, 12)
-		coin_icon.position = Vector2(812, 10)
+		coin_icon.size = Vector2(8, 8)
+		coin_icon.position = Vector2(814, 11)
 		coin_icon.z_index = 11
 		add_child(coin_icon)
-	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(830, 8), 15, Color(1.0, 0.9, 0.2))
+	_hud_coins = GameManager.make_label("%d" % PlayerData.coins, Vector2(826, 8), 15, Color(1.0, 0.9, 0.2))
 	_hud_coins.z_index = 11
 	add_child(_hud_coins)
 
@@ -379,7 +379,7 @@ func _build_shop_overlay() -> void:
 
 	# Panel
 	var panel = ColorRect.new()
-	panel.color = Color(0.82, 0.72, 0.52)
+	panel.color = Color(0.15, 0.10, 0.06, 0.96)
 	panel.size = Vector2(920, 474)
 	panel.position = Vector2(20, 33)
 	_shop_overlay.add_child(panel)
@@ -398,7 +398,7 @@ func _build_shop_overlay() -> void:
 	# Coins display
 	_overlay_coins = Label.new()
 	_overlay_coins.add_theme_font_size_override("font_size", 19)
-	_overlay_coins.add_theme_color_override("font_color", Color(0.7, 0.5, 0.05))
+	_overlay_coins.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
 	_overlay_coins.position = Vector2(32, 43)
 	_overlay_coins.size = Vector2(200, 36)
 	_shop_overlay.add_child(_overlay_coins)
@@ -413,7 +413,7 @@ func _build_shop_overlay() -> void:
 	var speech_lbl = Label.new()
 	speech_lbl.name = "SpeechLabel"
 	speech_lbl.add_theme_font_size_override("font_size", 15)
-	speech_lbl.add_theme_color_override("font_color", Color(0.2, 0.1, 0.0))
+	speech_lbl.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	speech_lbl.position = Vector2(32, 88)
 	speech_lbl.size = Vector2(880, 28)
 	_shop_overlay.add_child(speech_lbl)
@@ -452,7 +452,7 @@ func _build_shop_overlay() -> void:
 	var inv_label = Label.new()
 	inv_label.name = "InvLabel"
 	inv_label.add_theme_font_size_override("font_size", 13)
-	inv_label.add_theme_color_override("font_color", Color(0.35, 0.2, 0.05))
+	inv_label.add_theme_color_override("font_color", Color(0.7, 0.65, 0.55))
 	inv_label.position = Vector2(32, 462)
 	inv_label.size = Vector2(880, 28)
 	_shop_overlay.add_child(inv_label)
@@ -505,15 +505,15 @@ func _show_tab(tab: String) -> void:
 			empty_lbl.text = "Nothing to sell right now. Grow crops or tend animals first!"
 			empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			empty_lbl.add_theme_font_size_override("font_size", 16)
-			empty_lbl.add_theme_color_override("font_color", Color(0.4, 0.3, 0.1))
+			empty_lbl.add_theme_color_override("font_color", Color(0.75, 0.65, 0.5))
 			empty_lbl.position = Vector2(0, 40)
 			empty_lbl.size = Vector2(860, 30)
 			_item_list_node.add_child(empty_lbl)
 
 func _add_item_row(item: Dictionary, row: int) -> void:
-	var y = row * 84
+	var y = row * 86
 	var panel = ColorRect.new()
-	panel.color = Color(0.92, 0.85, 0.68)
+	panel.color = Color(0.96, 0.94, 0.89)
 	panel.size = Vector2(860, 76)
 	panel.position = Vector2(0, y)
 	_item_list_node.add_child(panel)
@@ -551,7 +551,7 @@ func _add_item_row(item: Dictionary, row: int) -> void:
 	cost_lbl.position = Vector2(506, 8)
 	cost_lbl.size = Vector2(128, 30)
 	cost_lbl.add_theme_font_size_override("font_size", 17)
-	cost_lbl.add_theme_color_override("font_color", Color(0.7, 0.5, 0.05))
+	cost_lbl.add_theme_color_override("font_color", Color(0.85, 0.55, 0.0))
 	panel.add_child(cost_lbl)
 
 	var owned = ""
@@ -583,12 +583,6 @@ func _buy_item(item: Dictionary) -> void:
 		_show_feedback("Not enough coins! Earn more at the Math Mines.", Color(0.85, 0.3, 0.1))
 		return
 
-	if item["id"] == "sprinkler" and PlayerData.has_item("sprinkler"):
-		PlayerData.add_coins(cost)
-		_show_feedback("You already own a sprinkler!", Color(0.85, 0.3, 0.1))
-		_update_overlay_coins()
-		return
-
 	if item["id"] in ["chicken", "pig", "cow"]:
 		if PlayerData.animals.size() >= 3:
 			# Refund — pen is full
@@ -609,9 +603,9 @@ func _buy_item(item: Dictionary) -> void:
 	timer.timeout.connect(func(): _show_tab(_active_tab))
 
 func _add_sell_row(item: Dictionary, row: int) -> void:
-	var y = row * 84
+	var y = row * 86
 	var panel = ColorRect.new()
-	panel.color = Color(0.68, 0.85, 0.72)
+	panel.color = Color(0.90, 0.97, 0.90)
 	panel.size = Vector2(860, 76)
 	panel.position = Vector2(0, y)
 	_item_list_node.add_child(panel)
@@ -704,13 +698,16 @@ func _update_tab_highlight() -> void:
 		var btn = _tab_buttons[tab_id]
 		var color = base_colors.get(tab_id, Color(0.3, 0.3, 0.3))
 		if tab_id == _active_tab:
-			color = color.lightened(0.25)
+			color = color.lightened(0.35)
 		var style = StyleBoxFlat.new()
 		style.bg_color = color
 		style.corner_radius_top_left = 10
 		style.corner_radius_top_right = 10
 		style.corner_radius_bottom_left = 10
 		style.corner_radius_bottom_right = 10
+		if tab_id == _active_tab:
+			style.border_width_bottom = 3
+			style.border_color = Color(1.0, 0.85, 0.2)
 		btn.add_theme_stylebox_override("normal", style)
 
 func _clear_items() -> void:
