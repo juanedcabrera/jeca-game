@@ -3,8 +3,8 @@ extends Node2D
 # House interior — intro on first visit, sleep-on-bed on all visits.
 
 const PLAYER_SPEED = 130.0
-const BED_CENTER   = Vector2(140, 295)
-const DOOR_CENTER  = Vector2(480, 490)
+const BED_CENTER   = Vector2(110, 280)
+const DOOR_CENTER  = Vector2(480, 460)
 
 # Pixelwood Valley sprite paths
 const PW_SPRITES = {
@@ -172,10 +172,10 @@ func _build_player() -> void:
 	add_child(_player)
 
 	# Room boundary walls
-	_add_wall(Vector2(0, 200), Vector2(960, 10))   # top of floor
+	_add_wall(Vector2(0, 180), Vector2(960, 30))   # top of floor (thick to prevent overlap with baseboard)
 	_add_wall(Vector2(0, 520), Vector2(960, 10))   # bottom
-	_add_wall(Vector2(0, 200), Vector2(10, 330))   # left
-	_add_wall(Vector2(950, 200), Vector2(10, 330)) # right
+	_add_wall(Vector2(0, 180), Vector2(10, 350))   # left
+	_add_wall(Vector2(950, 180), Vector2(10, 350)) # right
 	# Bed collision
 	_add_wall(Vector2(55, 235), Vector2(170, 110))
 	# Desk collision
@@ -267,6 +267,14 @@ func _physics_process(delta: float) -> void:
 		_player_drawer.walk_frame = _walk_frame
 		_player_drawer.queue_redraw()
 
+	# Auto-exit through door
+	if _player.position.y > 480 and _player.position.x > 420 and _player.position.x < 540:
+		if not _transitioning:
+			_transitioning = true
+			PlayerData.save_game()
+			_go_to_farm()
+			return
+
 	_check_nearby()
 
 func _input(event: InputEvent) -> void:
@@ -280,9 +288,9 @@ func _input(event: InputEvent) -> void:
 func _check_nearby() -> void:
 	_near_zone = ""
 	var p = _player.position
-	if p.distance_to(BED_CENTER) < 80:
+	if p.distance_to(BED_CENTER) < 120:
 		_near_zone = "bed"
-	elif p.distance_to(DOOR_CENTER) < 70:
+	elif p.distance_to(DOOR_CENTER) < 90:
 		_near_zone = "door"
 
 	if _near_zone == "bed":

@@ -87,6 +87,9 @@ var _age_picker_overlay: Control
 # Ore lock labels (updated at build time)
 var _ore_labels: Dictionary = {}
 var _ore_sprites: Dictionary = {}
+var _ore_glows: Dictionary = {}
+var _ore_text_colors: Dictionary = {}
+var _ore_base_labels: Dictionary = {}
 # Snapshot of unlock state at scene entry (to detect newly unlocked ops)
 var _initial_unlocks: Dictionary = {}
 
@@ -407,6 +410,9 @@ func _build_single_ore(ore_id: String, texture_path: String, label_text: String,
 	if not unlocked:
 		glow.modulate = Color(0.4, 0.4, 0.4, 0.5)
 	add_child(glow)
+	_ore_glows[ore_id] = glow
+	_ore_text_colors[ore_id] = text_color
+	_ore_base_labels[ore_id] = label_text
 
 	# Ore sprite
 	var spr = Sprite2D.new()
@@ -716,6 +722,34 @@ func _close_quiz() -> void:
 	_quiz_overlay.visible = false
 	_mode = "walk"
 	_near_ore = ""
+	_refresh_ore_visuals()
+	# Update snapshot so subsequent sessions detect new unlocks correctly
+	for op in ["addition", "subtraction", "multiplication", "division"]:
+		_initial_unlocks[op] = _is_unlocked(op)
+
+func _refresh_ore_visuals() -> void:
+	for ore_id in _ore_sprites:
+		var unlocked = _is_unlocked(ore_id)
+		# Sprite
+		if unlocked:
+			_ore_sprites[ore_id].modulate = Color(1, 1, 1, 1)
+		else:
+			_ore_sprites[ore_id].modulate = Color(0.4, 0.4, 0.4, 0.6)
+		# Glow
+		if _ore_glows.has(ore_id):
+			if unlocked:
+				_ore_glows[ore_id].modulate = Color(1, 1, 1, 1)
+			else:
+				_ore_glows[ore_id].modulate = Color(0.4, 0.4, 0.4, 0.5)
+		# Label
+		if _ore_labels.has(ore_id):
+			var lbl = _ore_labels[ore_id]
+			if unlocked:
+				lbl.text = _ore_base_labels.get(ore_id, "")
+				lbl.add_theme_color_override("font_color", _ore_text_colors.get(ore_id, Color.WHITE))
+			else:
+				lbl.text = _ore_base_labels.get(ore_id, "") + "\n(LOCKED)"
+				lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 
 func _get_ore_key_for_mode() -> String:
 	match _mode:
