@@ -37,6 +37,7 @@ var math_subtraction_solved: int = 0
 var math_multiplication_solved: int = 0
 var math_division_solved: int = 0
 var words_read: int = 0
+var letter_mastery: Dictionary = {}  # { "A": 3, "B": 5, ... } correct counts per letter
 var game_started: bool = false
 var intro_seen: bool = false
 
@@ -84,6 +85,7 @@ func reset() -> void:
 	math_multiplication_solved = 0
 	math_division_solved = 0
 	words_read = 0
+	letter_mastery = {}
 	game_started = false
 	intro_seen = false
 	player_age = 0
@@ -207,6 +209,7 @@ func save_game() -> void:
 		"math_multiplication_solved": math_multiplication_solved,
 		"math_division_solved": math_division_solved,
 		"words_read": words_read,
+		"letter_mastery": letter_mastery,
 		"intro_seen": intro_seen,
 		"animals_tended_today": animals_tended_today,
 		"player_age": player_age,
@@ -248,6 +251,7 @@ func load_slot(slot: int) -> bool:
 	math_multiplication_solved = data.get("math_multiplication_solved", 0)
 	math_division_solved = data.get("math_division_solved", 0)
 	words_read = data.get("words_read", 0)
+	letter_mastery = data.get("letter_mastery", {})
 	intro_seen = data.get("intro_seen", false)
 	animals_tended_today = data.get("animals_tended_today", false)
 	player_age = data.get("player_age", 0)

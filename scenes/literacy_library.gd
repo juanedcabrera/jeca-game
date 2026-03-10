@@ -34,6 +34,10 @@ const SPELLING_ROUNDS        = 5
 const FERTILIZER_EVERY       = 5
 const PLAYER_SPEED           = 150
 const BOOKSHELF_INTERACT_DIST = 110.0
+const READING_UNLOCK_THRESHOLD  = 15   # words_read needed to unlock Reading
+const SPELLING_UNLOCK_THRESHOLD = 30   # words_read needed to unlock Spelling
+const LETTER_MASTERY_GOAL       = 5    # correct per letter to master it
+const WRITING_COINS             = 3    # coins per correct writing answer
 
 # Bookshelf sprite centers (interaction points)
 const BOOKSHELF_POSITIONS = [Vector2(130, 175), Vector2(830, 175)]
@@ -191,6 +195,12 @@ var _chosen_spelling_words: Array = []
 var _current_spelling: Dictionary = {}
 var _spelling_def_label: Label
 var _spelling_buttons: Array = []
+
+# Writing game
+var _writing_round: int = 0
+var _writing_correct: int = 0
+var _writing_target_letter: String = ""
+var _writing_buttons: Array = []
 
 # Session tracking for results
 var _session_coins_earned: int = 0
@@ -652,6 +662,7 @@ func _clear_dynamic() -> void:
 	_letter_buttons.clear()
 	_reading_buttons.clear()
 	_spelling_buttons.clear()
+	_writing_buttons.clear()
 	_question_label = null
 	_feedback_label = null
 	_story_label = null
@@ -659,6 +670,21 @@ func _clear_dynamic() -> void:
 	_spelling_def_label = null
 	if _progress_label:
 		_progress_label.text = ""
+
+func _all_letters_mastered() -> bool:
+	for entry in LETTER_LIST:
+		var letter = entry[0]
+		if PlayerData.letter_mastery.get(letter, 0) < LETTER_MASTERY_GOAL:
+			return false
+	return true
+
+func _mastered_letter_count() -> int:
+	var count = 0
+	for entry in LETTER_LIST:
+		var letter = entry[0]
+		if PlayerData.letter_mastery.get(letter, 0) >= LETTER_MASTERY_GOAL:
+			count += 1
+	return count
 
 # ── Game Selection Menu ──────────────────────────────────────────────────────
 func _show_game_menu() -> void:
@@ -677,26 +703,59 @@ func _show_game_menu() -> void:
 	title.size = Vector2(620, 40)
 	_puzzle_overlay.add_child(_tag(title))
 
-	# ABC Letters button
-	var letters_btn = GameManager.make_button("ABC Letters", Vector2(310, 210), Vector2(340, 56), Color(0.75, 0.2, 0.2))
-	letters_btn.add_theme_font_size_override("font_size", 24)
-	letters_btn.pressed.connect(func(): _start_letters_game())
-	_puzzle_overlay.add_child(_tag(letters_btn))
+	var btn_y = 210
 
-	# Reading Stories button
-	var reading_btn = GameManager.make_button("Reading Stories", Vector2(310, 282), Vector2(340, 56), Color(0.2, 0.55, 0.75))
-	reading_btn.add_theme_font_size_override("font_size", 24)
-	reading_btn.pressed.connect(func(): _start_reading_game())
-	_puzzle_overlay.add_child(_tag(reading_btn))
+	# ABC Letters / Writing Practice button
+	if _all_letters_mastered():
+		var writing_btn = GameManager.make_button("Writing Practice", Vector2(310, btn_y), Vector2(340, 56), Color(0.7, 0.45, 0.1))
+		writing_btn.add_theme_font_size_override("font_size", 24)
+		writing_btn.pressed.connect(func(): _start_writing_game())
+		_puzzle_overlay.add_child(_tag(writing_btn))
+	else:
+		var mastered = _mastered_letter_count()
+		var letters_text = "ABC Letters  (%d/26)" % mastered
+		var letters_btn = GameManager.make_button(letters_text, Vector2(310, btn_y), Vector2(340, 56), Color(0.75, 0.2, 0.2))
+		letters_btn.add_theme_font_size_override("font_size", 24)
+		letters_btn.pressed.connect(func(): _start_letters_game())
+		_puzzle_overlay.add_child(_tag(letters_btn))
+	btn_y += 72
 
-	# Spelling Bee button
-	var spelling_btn = GameManager.make_button("Spelling Bee", Vector2(310, 354), Vector2(340, 56), Color(0.55, 0.2, 0.75))
-	spelling_btn.add_theme_font_size_override("font_size", 24)
-	spelling_btn.pressed.connect(func(): _start_spelling_game())
-	_puzzle_overlay.add_child(_tag(spelling_btn))
+	# Reading Stories button (locked until words_read >= threshold)
+	var reading_unlocked = PlayerData.words_read >= READING_UNLOCK_THRESHOLD
+	if reading_unlocked:
+		var reading_btn = GameManager.make_button("Reading Stories", Vector2(310, btn_y), Vector2(340, 56), Color(0.2, 0.55, 0.75))
+		reading_btn.add_theme_font_size_override("font_size", 24)
+		reading_btn.pressed.connect(func(): _start_reading_game())
+		_puzzle_overlay.add_child(_tag(reading_btn))
+	else:
+		var remaining = READING_UNLOCK_THRESHOLD - PlayerData.words_read
+		var lock_btn = GameManager.make_button("Reading Stories (LOCKED)", Vector2(310, btn_y), Vector2(340, 56), Color(0.3, 0.3, 0.3))
+		lock_btn.add_theme_font_size_override("font_size", 20)
+		lock_btn.disabled = true
+		_puzzle_overlay.add_child(_tag(lock_btn))
+		var lock_hint = GameManager.make_label("Learn %d more letters to unlock!" % remaining, Vector2(310, btn_y + 44), 13, Color(0.5, 0.4, 0.3))
+		_puzzle_overlay.add_child(_tag(lock_hint))
+	btn_y += 72
+
+	# Spelling Bee button (locked until words_read >= threshold)
+	var spelling_unlocked = PlayerData.words_read >= SPELLING_UNLOCK_THRESHOLD
+	if spelling_unlocked:
+		var spelling_btn = GameManager.make_button("Spelling Bee", Vector2(310, btn_y), Vector2(340, 56), Color(0.55, 0.2, 0.75))
+		spelling_btn.add_theme_font_size_override("font_size", 24)
+		spelling_btn.pressed.connect(func(): _start_spelling_game())
+		_puzzle_overlay.add_child(_tag(spelling_btn))
+	else:
+		var remaining = SPELLING_UNLOCK_THRESHOLD - PlayerData.words_read
+		var lock_btn = GameManager.make_button("Spelling Bee (LOCKED)", Vector2(310, btn_y), Vector2(340, 56), Color(0.3, 0.3, 0.3))
+		lock_btn.add_theme_font_size_override("font_size", 20)
+		lock_btn.disabled = true
+		_puzzle_overlay.add_child(_tag(lock_btn))
+		var lock_hint = GameManager.make_label("Learn %d more letters to unlock!" % remaining, Vector2(310, btn_y + 44), 13, Color(0.5, 0.4, 0.3))
+		_puzzle_overlay.add_child(_tag(lock_hint))
+	btn_y += 72
 
 	# Back button
-	var back_btn = GameManager.make_button("Back", Vector2(400, 430), Vector2(160, 46), Color(0.3, 0.22, 0.12))
+	var back_btn = GameManager.make_button("Back", Vector2(400, btn_y), Vector2(160, 46), Color(0.3, 0.22, 0.12))
 	back_btn.pressed.connect(func(): _close_puzzle())
 	_puzzle_overlay.add_child(_tag(back_btn))
 
@@ -722,9 +781,18 @@ func _start_letters_game() -> void:
 	_rounds_done = 0
 	_clear_dynamic()
 
-	var all_letters = LETTER_LIST.duplicate()
-	all_letters.shuffle()
-	_chosen_letters = all_letters.slice(0, MAX_ROUNDS)
+	# Prioritize unmastered letters
+	var unmastered: Array = []
+	var mastered: Array = []
+	for entry in LETTER_LIST:
+		if PlayerData.letter_mastery.get(entry[0], 0) < LETTER_MASTERY_GOAL:
+			unmastered.append(entry)
+		else:
+			mastered.append(entry)
+	unmastered.shuffle()
+	mastered.shuffle()
+	var pool = unmastered + mastered
+	_chosen_letters = pool.slice(0, MAX_ROUNDS)
 
 	_build_letters_ui()
 	_show_next_letter()
@@ -811,6 +879,10 @@ func _check_letter(btn_idx: int) -> void:
 		PlayerData.add_coins(3)
 		_session_coins_earned += 3
 		_hud_coins.text = "Coins: %d" % PlayerData.coins
+
+		# Track letter mastery
+		var upper_letter = _current_letter[0]
+		PlayerData.letter_mastery[upper_letter] = PlayerData.letter_mastery.get(upper_letter, 0) + 1
 
 		var is_fertilizer_reward = ((PlayerData.words_read + 1) % FERTILIZER_EVERY == 0)
 		if is_fertilizer_reward:
@@ -1064,6 +1136,131 @@ func _check_spelling(btn_idx: int) -> void:
 # RESULTS (shared across all modes)
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════════════════════
+# MODE 4: WRITING PRACTICE (unlocked after mastering all 26 letters)
+# Show a lowercase letter prompt, player picks the matching uppercase from 6 options
+# ══════════════════════════════════════════════════════════════════════════════
+
+func _start_writing_game() -> void:
+	_mode = "writing"
+	_session_game_mode = "writing"
+	_session_coins_earned = 0
+	_writing_round = 0
+	_writing_correct = 0
+	_clear_dynamic()
+	_build_writing_ui()
+	_show_next_writing()
+
+func _build_writing_ui() -> void:
+	var title = Label.new()
+	title.text = "WRITING PRACTICE"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", Color(0.35, 0.18, 0.04))
+	title.position = Vector2(170, 138)
+	title.size = Vector2(620, 34)
+	_puzzle_overlay.add_child(_tag(title))
+
+	# Large lowercase letter prompt
+	_question_label = Label.new()
+	_question_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_question_label.add_theme_font_size_override("font_size", 100)
+	_question_label.add_theme_color_override("font_color", Color(0.15, 0.08, 0.02))
+	_question_label.position = Vector2(280, 175)
+	_question_label.size = Vector2(400, 120)
+	_puzzle_overlay.add_child(_tag(_question_label))
+
+	# Instruction
+	var hint = GameManager.make_label(
+		"Which uppercase letter matches?", Vector2(280, 300), 18, Color(0.4, 0.25, 0.08))
+	_puzzle_overlay.add_child(_tag(hint))
+
+	# Feedback
+	_feedback_label = Label.new()
+	_feedback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_feedback_label.add_theme_font_size_override("font_size", 24)
+	_feedback_label.add_theme_color_override("font_color", Color(0.2, 0.7, 0.2))
+	_feedback_label.position = Vector2(170, 334)
+	_feedback_label.size = Vector2(620, 36)
+	_feedback_label.text = ""
+	_puzzle_overlay.add_child(_tag(_feedback_label))
+
+	# 6 answer buttons (2 rows of 3)
+	_writing_buttons.clear()
+	var btn_colors = [Color(0.7, 0.25, 0.15), Color(0.2, 0.5, 0.7), Color(0.5, 0.2, 0.65),
+					  Color(0.6, 0.4, 0.1), Color(0.15, 0.5, 0.3), Color(0.4, 0.15, 0.5)]
+	for i in range(6):
+		var col = i % 3
+		var row = i / 3
+		var btn = GameManager.make_button("", Vector2(216 + col * 180, 380 + row * 68), Vector2(160, 58), btn_colors[i])
+		btn.add_theme_font_size_override("font_size", 36)
+		var idx = i
+		btn.pressed.connect(func(): _check_writing(idx))
+		_puzzle_overlay.add_child(_tag(btn))
+		_writing_buttons.append(btn)
+
+func _show_next_writing() -> void:
+	if _writing_round >= MAX_ROUNDS:
+		_show_results()
+		return
+
+	_progress_label.text = "Letter %d / %d" % [_writing_round + 1, MAX_ROUNDS]
+	if _feedback_label:
+		_feedback_label.text = ""
+
+	# Pick a random letter
+	var letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	var target_idx = randi() % 26
+	_writing_target_letter = letters[target_idx]
+
+	# Show lowercase prompt
+	_question_label.text = _writing_target_letter.to_lower()
+
+	# Build answer options: correct + 5 random wrong uppercase letters
+	var options: Array = [_writing_target_letter]
+	var available: Array = []
+	for c in letters:
+		if c != _writing_target_letter:
+			available.append(String(c))
+	available.shuffle()
+	for i in range(5):
+		options.append(available[i])
+	options.shuffle()
+
+	for i in range(6):
+		_writing_buttons[i].text = options[i]
+		_writing_buttons[i].set_meta("correct", options[i] == _writing_target_letter)
+		_writing_buttons[i].disabled = false
+
+func _check_writing(btn_idx: int) -> void:
+	var btn = _writing_buttons[btn_idx]
+	var is_correct = btn.get_meta("correct", false)
+
+	for b in _writing_buttons:
+		b.disabled = true
+
+	if is_correct:
+		_writing_correct += 1
+		_feedback_label.text = "Correct! +%d coins!" % WRITING_COINS
+		_feedback_label.add_theme_color_override("font_color", Color(0.3, 0.85, 0.3))
+		PlayerData.add_coins(WRITING_COINS)
+		_session_coins_earned += WRITING_COINS
+		_hud_coins.text = "Coins: %d" % PlayerData.coins
+
+		var is_fertilizer_reward = ((PlayerData.words_read + 1) % FERTILIZER_EVERY == 0)
+		if is_fertilizer_reward:
+			PlayerData.add_item("fertilizer", 1)
+			_feedback_label.text = "Excellent! +%d coins and Fertilizer!" % WRITING_COINS
+
+		PlayerData.words_read += 1
+	else:
+		_feedback_label.text = "Not quite! The answer was '%s'" % _writing_target_letter
+		_feedback_label.add_theme_color_override("font_color", Color(0.9, 0.45, 0.1))
+
+	_writing_round += 1
+	var timer = get_tree().create_timer(1.8)
+	timer.timeout.connect(_show_next_writing)
+
 func _show_results() -> void:
 	_mode = "results"
 	_clear_dynamic()
@@ -1082,13 +1279,16 @@ func _show_results() -> void:
 	match _session_game_mode:
 		"letters":
 			summary_text = "Letters matched: %d / %d\nCoins earned: %d" % [
-				_session_coins_earned / 2, MAX_ROUNDS, _session_coins_earned]
+				_session_coins_earned / 3, MAX_ROUNDS, _session_coins_earned]
 		"reading":
 			summary_text = "Story: %s\nCorrect answers: %d / %d\nCoins earned: %d" % [
 				_current_story["title"], _reading_correct, READING_QUESTIONS, _session_coins_earned]
 		"spelling":
 			summary_text = "Words spelled: %d / %d\nCoins earned: %d" % [
 				_spelling_correct, SPELLING_ROUNDS, _session_coins_earned]
+		"writing":
+			summary_text = "Letters written: %d / %d\nCoins earned: %d" % [
+				_writing_correct, MAX_ROUNDS, _session_coins_earned]
 
 	var stats = Label.new()
 	stats.text = summary_text

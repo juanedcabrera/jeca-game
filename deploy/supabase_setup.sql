@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.save_slots (
     math_multiplication_solved int    NOT NULL DEFAULT 0,
     math_division_solved  int         NOT NULL DEFAULT 0,
     words_read            int         NOT NULL DEFAULT 0,
+    letter_mastery        jsonb       NOT NULL DEFAULT '{}'::jsonb,
     intro_seen            boolean     NOT NULL DEFAULT false,
     player_age            int         NOT NULL DEFAULT 0,
     animals_tended_today  boolean     NOT NULL DEFAULT false,
@@ -38,6 +39,7 @@ ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS math_multiplication_solve
 ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS math_division_solved int NOT NULL DEFAULT 0;
 ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS animals_tended_today boolean NOT NULL DEFAULT false;
 ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS game_started boolean NOT NULL DEFAULT false;
+ALTER TABLE public.save_slots ADD COLUMN IF NOT EXISTS letter_mastery jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 -- Migrate legacy data: credit existing math_problems_solved to addition
 UPDATE public.save_slots
