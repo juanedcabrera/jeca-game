@@ -9,6 +9,7 @@ const PW_SPRITES = {
 	"boy_walk_up":   "res://Pixelwood Valley 1.1.2/Player Character/Walk/Up.png",
 	"boy_walk_down": "res://Pixelwood Valley 1.1.2/Player Character/Walk/Down.png",
 	"boy_walk_side": "res://Pixelwood Valley 1.1.2/Player Character/Walk/Side.png",
+	"girl_sprite": "res://Pixelwood Valley 1.1.2/NPCs/4.png",
 }
 
 const PW_CAVE = {
@@ -1180,32 +1181,48 @@ class _MinePlayer extends Node2D:
 
 	func _ready() -> void:
 		_sprite = Sprite2D.new()
-		_sprite.hframes = 4
-		_sprite.frame = 0
-		_sprite.texture = load(PW_SPRITES["boy_idle_down"])
-		_last_tex_key = "boy_idle_down"
 		if gender == "girl":
-			_sprite.modulate = Color(1.05, 0.78, 0.92)
+			_sprite.texture = load(PW_SPRITES["girl_sprite"])
+			_sprite.hframes = 4
+			_sprite.vframes = 7
+			_sprite.frame = 0
+		else:
+			_sprite.hframes = 4
+			_sprite.frame = 0
+			_sprite.texture = load(PW_SPRITES["boy_idle_down"])
+			_last_tex_key = "boy_idle_down"
 		add_child(_sprite)
 
 	func _process(_delta: float) -> void:
 		if not _sprite:
 			return
 		var is_moving = walk_frame > 0
-		var tex_key: String
-		match facing:
-			"up":
-				tex_key = "boy_walk_up" if is_moving else "boy_idle_up"
-			"left", "right":
-				tex_key = "boy_walk_side" if is_moving else "boy_idle_side"
-			_:
-				tex_key = "boy_walk_down" if is_moving else "boy_idle_down"
-		if tex_key != _last_tex_key:
-			_sprite.texture = load(PW_SPRITES[tex_key])
-			_sprite.hframes = 4
-			_last_tex_key = tex_key
 		_sprite.flip_h = (facing == "right")
-		_sprite.frame = int(walk_frame * 4) % 4 if is_moving else 0
+		if gender == "girl":
+			var row: int
+			match facing:
+				"up":
+					row = 5 if is_moving else 2
+				"left", "right":
+					row = 4 if is_moving else 1
+				_:
+					row = 3 if is_moving else 0
+			var col = int(walk_frame * 4) % 4 if is_moving else 0
+			_sprite.frame = row * 4 + col
+		else:
+			var tex_key: String
+			match facing:
+				"up":
+					tex_key = "boy_walk_up" if is_moving else "boy_idle_up"
+				"left", "right":
+					tex_key = "boy_walk_side" if is_moving else "boy_idle_side"
+				_:
+					tex_key = "boy_walk_down" if is_moving else "boy_idle_down"
+			if tex_key != _last_tex_key:
+				_sprite.texture = load(PW_SPRITES[tex_key])
+				_sprite.hframes = 4
+				_last_tex_key = tex_key
+			_sprite.frame = int(walk_frame * 4) % 4 if is_moving else 0
 
 	func _draw() -> void:
 		pass

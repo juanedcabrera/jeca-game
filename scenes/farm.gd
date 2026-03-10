@@ -286,11 +286,34 @@ func _build_hud() -> void:
 	chest_btn.pressed.connect(_toggle_inventory)
 	add_child(chest_btn)
 
+const ITEM_ICONS = {
+	"hand": "✋", "water_jug": "💧",
+	"sunflower_seeds": "🌻", "carrot_seeds": "🥕", "strawberry_seeds": "🍓",
+	"fertilizer": "🧪", "sprinkler": "💦", "animal_food": "🌾",
+}
+
+const ITEM_LABELS = {
+	"hand": "Hand", "water_jug": "Water Jug",
+	"sunflower_seeds": "Sunflower", "carrot_seeds": "Carrot", "strawberry_seeds": "Strawberry",
+	"fertilizer": "Fertilizer", "sprinkler": "Sprinkler", "animal_food": "Feed",
+}
+
+const ANIMAL_ICONS = { "chicken": "🐔", "pig": "🐷", "cow": "🐄" }
+
+# Items that can be selected as tools/seeds
+const SELECTABLE_ITEMS = ["hand", "water_jug", "sunflower_seeds", "carrot_seeds", "strawberry_seeds"]
+
 func _build_tool_bar() -> void:
-	# ── Inventory panel (hidden by default) ──
 	_inventory_panel = Control.new()
 	_inventory_panel.visible = false
 	_inventory_panel.z_index = 50
+	add_child(_inventory_panel)
+
+func _rebuild_inventory_contents() -> void:
+	# Clear old contents
+	for child in _inventory_panel.get_children():
+		child.queue_free()
+	_inventory_tool_buttons.clear()
 
 	# Dim overlay
 	var dim = ColorRect.new()
@@ -298,19 +321,46 @@ func _build_tool_bar() -> void:
 	dim.size = Vector2(960, 540)
 	_inventory_panel.add_child(dim)
 
-	# Panel border (behind panel)
-	var panel_border = ColorRect.new()
-	panel_border.color = Color(0.55, 0.40, 0.18)
-	panel_border.size = Vector2(324, 284)
-	panel_border.position = Vector2(318, 128)
-	_inventory_panel.add_child(panel_border)
+	# Panel size adapts to content
+	var panel_w = 380
+	var panel_x = 290
+	var row_y = 175
+
+	# Count rows needed
+	var tool_items = ["hand", "water_jug"]
+	var seed_items = ["sunflower_seeds", "carrot_seeds", "strawberry_seeds"]
+	var supply_items: Array = []
+	for key in ["fertilizer", "sprinkler", "animal_food"]:
+		if PlayerData.inventory.get(key, 0) > 0:
+			supply_items.append(key)
+	var animal_counts: Dictionary = {}
+	for a in PlayerData.animals:
+		var t = a.get("type", "chicken")
+		animal_counts[t] = animal_counts.get(t, 0) + 1
+
+	var total_rows = tool_items.size() + seed_items.size() + supply_items.size() + animal_counts.size()
+	# Add section headers
+	var sections = 2  # Tools, Seeds always shown
+	if supply_items.size() > 0:
+		sections += 1
+	if animal_counts.size() > 0:
+		sections += 1
+	var panel_h = 50 + (total_rows * 34) + (sections * 28)
+	var panel_y = max(60, 270 - panel_h / 2)
+
+	# Panel border
+	var border = ColorRect.new()
+	border.color = Color(0.55, 0.40, 0.18)
+	border.size = Vector2(panel_w + 4, panel_h + 4)
+	border.position = Vector2(panel_x - 2, panel_y - 2)
+	_inventory_panel.add_child(border)
 
 	# Panel background
-	var panel_bg = ColorRect.new()
-	panel_bg.color = Color(0.12, 0.08, 0.03, 0.95)
-	panel_bg.size = Vector2(320, 280)
-	panel_bg.position = Vector2(320, 130)
-	_inventory_panel.add_child(panel_bg)
+	var bg = ColorRect.new()
+	bg.color = Color(0.12, 0.08, 0.03, 0.95)
+	bg.size = Vector2(panel_w, panel_h)
+	bg.position = Vector2(panel_x, panel_y)
+	_inventory_panel.add_child(bg)
 
 	# Title
 	var title = Label.new()
@@ -318,34 +368,98 @@ func _build_tool_bar() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 22)
 	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.3))
-	title.position = Vector2(320, 138)
-	title.size = Vector2(320, 30)
+	title.position = Vector2(panel_x, panel_y + 8)
+	title.size = Vector2(panel_w, 30)
 	_inventory_panel.add_child(title)
 
-	# Tool/seed buttons
-	var tools = [
-		["hand", "✋ Hand", Color(0.35, 0.28, 0.18)],
-		["water_jug", "💧 Water Jug", Color(0.18, 0.35, 0.6)],
-		["sunflower_seeds", "🌻 Sunflower Seeds", Color(0.5, 0.42, 0.08)],
-		["carrot_seeds", "🥕 Carrot Seeds", Color(0.5, 0.28, 0.05)],
-		["strawberry_seeds", "🍓 Strawberry Seeds", Color(0.5, 0.12, 0.18)],
-	]
-	for i in range(tools.size()):
-		var t = tools[i]
-		var btn = GameManager.make_button(t[1], Vector2(345, 175 + i * 42), Vector2(270, 36), t[2])
-		btn.add_theme_font_size_override("font_size", 15)
-		var tool_id = t[0]
-		btn.pressed.connect(func():
-			_set_tool(tool_id)
-			_toggle_inventory()
-		)
-		_inventory_panel.add_child(btn)
-		_inventory_tool_buttons.append(btn)
+	row_y = panel_y + 42
 
-	add_child(_inventory_panel)
+	# Close button
+	var close_btn = GameManager.make_button("X", Vector2(panel_x + panel_w - 40, panel_y + 6), Vector2(34, 28), Color(0.5, 0.12, 0.1))
+	close_btn.add_theme_font_size_override("font_size", 14)
+	close_btn.pressed.connect(_toggle_inventory)
+	_inventory_panel.add_child(close_btn)
+
+	# Helper: add section header
+	var _add_section = func(text: String) -> void:
+		var lbl = Label.new()
+		lbl.text = text
+		lbl.add_theme_font_size_override("font_size", 14)
+		lbl.add_theme_color_override("font_color", Color(0.7, 0.6, 0.4))
+		lbl.position = Vector2(panel_x + 12, row_y)
+		lbl.size = Vector2(panel_w - 24, 20)
+		_inventory_panel.add_child(lbl)
+		row_y += 22
+
+	# Helper: add item row
+	var _add_item_row = func(item_id: String, icon: String, label: String, count: int, selectable: bool) -> void:
+		var row = Control.new()
+		row.position = Vector2(panel_x + 10, row_y)
+		row.size = Vector2(panel_w - 20, 30)
+
+		# Icon + label
+		var text = "%s %s" % [icon, label]
+		if item_id != "hand":
+			text += "  x%d" % count
+
+		if selectable:
+			var btn = GameManager.make_button(text, Vector2(0, 0), Vector2(panel_w - 20, 30),
+				Color(0.2, 0.15, 0.08) if _current_tool != item_id else Color(0.15, 0.45, 0.15))
+			btn.add_theme_font_size_override("font_size", 15)
+			var tid = item_id
+			btn.pressed.connect(func():
+				_set_tool(tid)
+				_toggle_inventory()
+			)
+			row.add_child(btn)
+			_inventory_tool_buttons.append(btn)
+		else:
+			var lbl = Label.new()
+			lbl.text = text
+			lbl.add_theme_font_size_override("font_size", 15)
+			lbl.add_theme_color_override("font_color", Color(0.85, 0.8, 0.65))
+			lbl.position = Vector2(8, 4)
+			lbl.size = Vector2(panel_w - 36, 24)
+			row.add_child(lbl)
+
+		_inventory_panel.add_child(row)
+		row_y += 34
+
+	# -- Tools section --
+	_add_section.call("— Tools —")
+	_add_item_row.call("hand", "✋", "Hand", 1, true)
+	var jug_count = PlayerData.inventory.get("water_jug", 0)
+	_add_item_row.call("water_jug", "💧", "Water Jug", jug_count, jug_count > 0)
+
+	# -- Seeds section --
+	_add_section.call("— Seeds —")
+	for seed_id in seed_items:
+		var cnt = PlayerData.inventory.get(seed_id, 0)
+		var icon = ITEM_ICONS.get(seed_id, "?")
+		var label = ITEM_LABELS.get(seed_id, seed_id)
+		_add_item_row.call(seed_id, icon, label, cnt, cnt > 0)
+
+	# -- Supplies section (only if any owned) --
+	if supply_items.size() > 0:
+		_add_section.call("— Supplies —")
+		for item_id in supply_items:
+			var cnt = PlayerData.inventory.get(item_id, 0)
+			var icon = ITEM_ICONS.get(item_id, "?")
+			var label = ITEM_LABELS.get(item_id, item_id)
+			_add_item_row.call(item_id, icon, label, cnt, false)
+
+	# -- Animals section (only if any owned) --
+	if animal_counts.size() > 0:
+		_add_section.call("— Livestock —")
+		for atype in animal_counts:
+			var icon = ANIMAL_ICONS.get(atype, "🐾")
+			var label = atype.capitalize()
+			_add_item_row.call(atype, icon, label, animal_counts[atype], false)
 
 func _toggle_inventory() -> void:
 	_inventory_open = not _inventory_open
+	if _inventory_open:
+		_rebuild_inventory_contents()
 	_inventory_panel.visible = _inventory_open
 
 func _refresh_hud() -> void:
@@ -727,32 +841,49 @@ class PlayerDrawer extends Node2D:
 
 	func _ready() -> void:
 		_sprite = Sprite2D.new()
-		_sprite.hframes = 4
-		_sprite.frame = 0
-		_sprite.texture = load(PW_SPRITES["boy_idle_down"])
-		_last_tex_key = "boy_idle_down"
 		if gender == "girl":
-			_sprite.modulate = Color(1.05, 0.78, 0.92)
+			_sprite.texture = load(PW_SPRITES["girl_sprite"])
+			_sprite.hframes = 4
+			_sprite.vframes = 7
+			_sprite.frame = 0
+		else:
+			_sprite.hframes = 4
+			_sprite.frame = 0
+			_sprite.texture = load(PW_SPRITES["boy_idle_down"])
+			_last_tex_key = "boy_idle_down"
 		add_child(_sprite)
 
 	func _process(_delta: float) -> void:
 		if not _sprite:
 			return
 		var is_moving = walk_frame > 0
-		var tex_key: String
-		match facing:
-			"up":
-				tex_key = "boy_walk_up" if is_moving else "boy_idle_up"
-			"left", "right":
-				tex_key = "boy_walk_side" if is_moving else "boy_idle_side"
-			_:
-				tex_key = "boy_walk_down" if is_moving else "boy_idle_down"
-		if tex_key != _last_tex_key:
-			_sprite.texture = load(PW_SPRITES[tex_key])
-			_sprite.hframes = 4
-			_last_tex_key = tex_key
 		_sprite.flip_h = (facing == "right")
-		_sprite.frame = int(walk_frame * 4) % 4 if is_moving else 0
+		if gender == "girl":
+			# NPC sheet rows: 0=idle_down, 1=idle_side, 2=idle_up, 3=walk_down, 4=walk_side, 5=walk_up
+			var row: int
+			match facing:
+				"up":
+					row = 5 if is_moving else 2
+				"left", "right":
+					row = 4 if is_moving else 1
+				_:
+					row = 3 if is_moving else 0
+			var col = int(walk_frame * 4) % 4 if is_moving else 0
+			_sprite.frame = row * 4 + col
+		else:
+			var tex_key: String
+			match facing:
+				"up":
+					tex_key = "boy_walk_up" if is_moving else "boy_idle_up"
+				"left", "right":
+					tex_key = "boy_walk_side" if is_moving else "boy_idle_side"
+				_:
+					tex_key = "boy_walk_down" if is_moving else "boy_idle_down"
+			if tex_key != _last_tex_key:
+				_sprite.texture = load(PW_SPRITES[tex_key])
+				_sprite.hframes = 4
+				_last_tex_key = tex_key
+			_sprite.frame = int(walk_frame * 4) % 4 if is_moving else 0
 
 	func _draw() -> void:
 		pass
