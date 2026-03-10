@@ -290,12 +290,16 @@ const ITEM_ICONS = {
 	"hand": "✋", "water_jug": "💧",
 	"sunflower_seeds": "🌻", "carrot_seeds": "🥕", "strawberry_seeds": "🍓",
 	"fertilizer": "🧪", "sprinkler": "💦", "animal_food": "🌾",
+	"sunflower": "🌻", "carrot": "🥕", "strawberry": "🍓",
+	"egg": "🥚", "milk": "🥛", "bacon": "🥓",
 }
 
 const ITEM_LABELS = {
 	"hand": "Hand", "water_jug": "Water Jug",
-	"sunflower_seeds": "Sunflower", "carrot_seeds": "Carrot", "strawberry_seeds": "Strawberry",
+	"sunflower_seeds": "Sunflower Seed", "carrot_seeds": "Carrot Seed", "strawberry_seeds": "Strawberry Seed",
 	"fertilizer": "Fertilizer", "sprinkler": "Sprinkler", "animal_food": "Feed",
+	"sunflower": "Sunflower", "carrot": "Carrot", "strawberry": "Strawberry",
+	"egg": "Egg", "milk": "Milk", "bacon": "Bacon",
 }
 
 const ANIMAL_ICONS = { "chicken": "🐔", "pig": "🐷", "cow": "🐄" }
@@ -329,6 +333,10 @@ func _rebuild_inventory_contents() -> void:
 	# Count rows needed
 	var tool_items = ["hand", "water_jug"]
 	var seed_items = ["sunflower_seeds", "carrot_seeds", "strawberry_seeds"]
+	var harvest_items: Array = []
+	for key in ["sunflower", "carrot", "strawberry", "egg", "milk", "bacon"]:
+		if PlayerData.inventory.get(key, 0) > 0:
+			harvest_items.append(key)
 	var supply_items: Array = []
 	for key in ["fertilizer", "sprinkler", "animal_food"]:
 		if PlayerData.inventory.get(key, 0) > 0:
@@ -338,9 +346,11 @@ func _rebuild_inventory_contents() -> void:
 		var t = a.get("type", "chicken")
 		animal_counts[t] = animal_counts.get(t, 0) + 1
 
-	var total_rows = tool_items.size() + seed_items.size() + supply_items.size() + animal_counts.size()
+	var total_rows = tool_items.size() + seed_items.size() + harvest_items.size() + supply_items.size() + animal_counts.size()
 	# Add section headers
 	var sections = 2  # Tools, Seeds always shown
+	if harvest_items.size() > 0:
+		sections += 1
 	if supply_items.size() > 0:
 		sections += 1
 	if animal_counts.size() > 0:
@@ -438,6 +448,15 @@ func _rebuild_inventory_contents() -> void:
 		var icon = ITEM_ICONS.get(seed_id, "?")
 		var label = ITEM_LABELS.get(seed_id, seed_id)
 		_add_item_row.call(seed_id, icon, label, cnt, cnt > 0)
+
+	# -- Harvest section (crops/products to sell) --
+	if harvest_items.size() > 0:
+		_add_section.call("— Harvest (sell at market) —")
+		for item_id in harvest_items:
+			var cnt = PlayerData.inventory.get(item_id, 0)
+			var icon = ITEM_ICONS.get(item_id, "?")
+			var label = ITEM_LABELS.get(item_id, item_id)
+			_add_item_row.call(item_id, icon, label, cnt, false)
 
 	# -- Supplies section (only if any owned) --
 	if supply_items.size() > 0:
@@ -684,8 +703,8 @@ func _interact_with_tile(idx: int) -> void:
 			var crop = PlayerData.harvest_tile(idx)
 			if crop != "":
 				_refresh_tile_drawer(idx)
-				var rewards = {"sunflower_seeds": 6, "carrot_seeds": 10, "strawberry_seeds": 16}
-				GameManager.show_message(self, "🎉 Harvested! +%d coins!" % rewards.get(crop, 5), 2.0)
+				var harvest_names = {"sunflower_seeds": "Sunflower", "carrot_seeds": "Carrot", "strawberry_seeds": "Strawberry"}
+				GameManager.show_message(self, "🎉 Harvested! +1 %s!\nSell at Sofi's in the market." % harvest_names.get(crop, "crop"), 2.5)
 
 func _refresh_tile_drawer(idx: int) -> void:
 	if idx < _farm_tile_drawers.size():
@@ -710,13 +729,15 @@ func _tend_animals() -> void:
 
 	PlayerData.use_item("animal_food")
 	PlayerData.animals_tended_today = true
-	var total_earned = 0
-	var earn_per_type = {"chicken": 2, "pig": 3, "cow": 5}
+	var product_per_type = {"chicken": "egg", "pig": "bacon", "cow": "milk"}
+	var product_names: Array = []
 	for animal in PlayerData.animals:
 		animal["happiness"] = min(10, animal.get("happiness", 5) + 2)
-		total_earned += earn_per_type.get(animal.get("type", "chicken"), 2)
-	PlayerData.add_coins(total_earned)
-	GameManager.show_message(self, "Fed & watered! +%d coins 🥣💧" % total_earned, 2.0)
+		var atype = animal.get("type", "chicken")
+		var product = product_per_type.get(atype, "egg")
+		PlayerData.add_item(product, 1)
+		product_names.append(product.capitalize())
+	GameManager.show_message(self, "Fed & tended! Got: %s\nSell at Lucas's in the market." % ", ".join(product_names), 2.5)
 
 func _advance_day() -> void:
 	var had_sprinkler = PlayerData.has_item("sprinkler")

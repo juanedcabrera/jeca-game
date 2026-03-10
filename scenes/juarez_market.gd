@@ -40,20 +40,34 @@ const NPC_NAMES = {
 
 const SHOP_ITEMS = {
 	"seeds": [
-		{"id": "sunflower_seeds", "name": "Sofi's Sunflower Seeds", "cost": 5,  "icon": "🌻", "desc": "Grows in 2 days, sells for 6"},
-		{"id": "carrot_seeds",    "name": "Sofi's Carrot Seeds",    "cost": 8,  "icon": "🥕", "desc": "Grows in 3 days, sells for 10"},
-		{"id": "strawberry_seeds","name": "Sofi's Strawberry Seeds","cost": 12, "icon": "🍓", "desc": "Grows in 4 days, sells for 16!"},
+		{"id": "sunflower_seeds", "name": "Sofi's Sunflower Seeds", "cost": 5,  "icon": "🌻", "desc": "Grows in 2 days, harvest sells for 6"},
+		{"id": "carrot_seeds",    "name": "Sofi's Carrot Seeds",    "cost": 8,  "icon": "🥕", "desc": "Grows in 3 days, harvest sells for 10"},
+		{"id": "strawberry_seeds","name": "Sofi's Strawberry Seeds","cost": 12, "icon": "🍓", "desc": "Grows in 4 days, harvest sells for 16!"},
 	],
 	"livestock": [
-		{"id": "chicken", "name": "Lucas's Chicken", "cost": 15, "icon": "🐔", "desc": "Tends for 2 coins/day"},
-		{"id": "pig",     "name": "Lucas's Pig",     "cost": 20, "icon": "🐷", "desc": "Tends for 3 coins/day"},
-		{"id": "cow",     "name": "Lucas's Cow",     "cost": 30, "icon": "🐄", "desc": "Tends for 5 coins/day"},
+		{"id": "chicken", "name": "Lucas's Chicken", "cost": 15, "icon": "🐔", "desc": "Produces eggs (sell for 2 each)"},
+		{"id": "pig",     "name": "Lucas's Pig",     "cost": 20, "icon": "🐷", "desc": "Produces bacon (sell for 3 each)"},
+		{"id": "cow",     "name": "Lucas's Cow",     "cost": 30, "icon": "🐄", "desc": "Produces milk (sell for 5 each)"},
 	],
 	"tools": [
 		{"id": "sprinkler",   "name": "Sprinkler",    "cost": 40, "icon": "💦", "desc": "Auto-waters all crops each day"},
 		{"id": "fertilizer",  "name": "Fertilizer",   "cost": 15, "icon": "🌱", "desc": "Speeds up crop growth by 1 day"},
 		{"id": "animal_food", "name": "Animal Food",  "cost": 8,  "icon": "🥣", "desc": "Feed & water your livestock (1/day)"},
 	],
+}
+
+const SELL_ITEMS = {
+	"seeds": [
+		{"id": "sunflower", "name": "Sunflower", "price": 6, "icon": "🌻"},
+		{"id": "carrot", "name": "Carrot", "price": 10, "icon": "🥕"},
+		{"id": "strawberry", "name": "Strawberry", "price": 16, "icon": "🍓"},
+	],
+	"livestock": [
+		{"id": "egg", "name": "Egg", "price": 2, "icon": "🥚"},
+		{"id": "bacon", "name": "Bacon", "price": 3, "icon": "🥓"},
+		{"id": "milk", "name": "Milk", "price": 5, "icon": "🥛"},
+	],
+	"tools": [],
 }
 
 var _mode: String = "walk"   # "walk" | "shop"
@@ -448,8 +462,34 @@ func _show_tab(tab: String) -> void:
 	if speech_lbl:
 		speech_lbl.text = speech_texts.get(tab, "What can I help you with?")
 
+	var row_idx = 0
 	for i in range(SHOP_ITEMS.get(tab, []).size()):
-		_add_item_row(SHOP_ITEMS[tab][i], i)
+		_add_item_row(SHOP_ITEMS[tab][i], row_idx)
+		row_idx += 1
+
+	# Sell section (if this NPC buys items)
+	var sell_list = SELL_ITEMS.get(tab, [])
+	var has_sellable = false
+	for sell_item in sell_list:
+		if PlayerData.get_item_count(sell_item["id"]) > 0:
+			has_sellable = true
+			break
+	if has_sellable:
+		# Sell header
+		var sell_header = Label.new()
+		sell_header.text = "── Sell to %s ──" % NPC_NAMES.get(_active_npc, "NPC").split("(")[0].strip_edges()
+		sell_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sell_header.add_theme_font_size_override("font_size", 16)
+		sell_header.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
+		sell_header.position = Vector2(0, row_idx * 84 + 10)
+		sell_header.size = Vector2(860, 28)
+		_item_list_node.add_child(sell_header)
+		row_idx += 1
+		# Sell rows
+		for sell_item in sell_list:
+			if PlayerData.get_item_count(sell_item["id"]) > 0:
+				_add_sell_row(sell_item, row_idx)
+				row_idx += 1
 
 func _add_item_row(item: Dictionary, row: int) -> void:
 	var y = row * 84
@@ -540,6 +580,78 @@ func _buy_item(item: Dictionary) -> void:
 		PlayerData.add_item(item["id"], 1)
 		_show_feedback("🎉 Bought %s!" % item["name"], Color(0.2, 0.75, 0.2))
 
+	_update_overlay_coins()
+	_update_inv_label()
+	PlayerData.save_game()
+	var timer = get_tree().create_timer(0.5)
+	timer.timeout.connect(func(): _show_tab(_active_tab))
+
+func _add_sell_row(item: Dictionary, row: int) -> void:
+	var y = row * 84
+	var panel = ColorRect.new()
+	panel.color = Color(0.68, 0.85, 0.72)
+	panel.size = Vector2(860, 76)
+	panel.position = Vector2(0, y)
+	_item_list_node.add_child(panel)
+
+	var icon_lbl = Label.new()
+	icon_lbl.text = item["icon"]
+	icon_lbl.position = Vector2(10, 14)
+	icon_lbl.size = Vector2(52, 52)
+	icon_lbl.add_theme_font_size_override("font_size", 34)
+	panel.add_child(icon_lbl)
+
+	var name_lbl = Label.new()
+	name_lbl.text = item["name"]
+	name_lbl.position = Vector2(70, 8)
+	name_lbl.size = Vector2(330, 30)
+	name_lbl.add_theme_font_size_override("font_size", 18)
+	name_lbl.add_theme_color_override("font_color", Color(0.1, 0.2, 0.05))
+	panel.add_child(name_lbl)
+
+	var count = PlayerData.get_item_count(item["id"])
+	var owned_lbl = Label.new()
+	owned_lbl.text = "In inventory: %d" % count
+	owned_lbl.position = Vector2(70, 40)
+	owned_lbl.size = Vector2(330, 26)
+	owned_lbl.add_theme_font_size_override("font_size", 13)
+	owned_lbl.add_theme_color_override("font_color", Color(0.2, 0.35, 0.1))
+	panel.add_child(owned_lbl)
+
+	var price_lbl = Label.new()
+	price_lbl.text = "+%d coins each" % item["price"]
+	price_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	price_lbl.position = Vector2(406, 8)
+	price_lbl.size = Vector2(128, 30)
+	price_lbl.add_theme_font_size_override("font_size", 17)
+	price_lbl.add_theme_color_override("font_color", Color(0.1, 0.5, 0.1))
+	panel.add_child(price_lbl)
+
+	# Sell 1 button
+	var sell_btn = GameManager.make_button("SELL 1", Vector2(544, 14), Vector2(100, 48), Color(0.6, 0.35, 0.08))
+	sell_btn.add_theme_font_size_override("font_size", 16)
+	var item_ref = item
+	sell_btn.pressed.connect(func(): _sell_item(item_ref, 1))
+	panel.add_child(sell_btn)
+
+	# Sell All button
+	if count > 1:
+		var sell_all_btn = GameManager.make_button("ALL", Vector2(654, 14), Vector2(100, 48), Color(0.5, 0.15, 0.08))
+		sell_all_btn.add_theme_font_size_override("font_size", 16)
+		sell_all_btn.pressed.connect(func(): _sell_item(item_ref, count))
+		panel.add_child(sell_all_btn)
+
+func _sell_item(item: Dictionary, quantity: int) -> void:
+	var count = PlayerData.get_item_count(item["id"])
+	var to_sell = mini(quantity, count)
+	if to_sell <= 0:
+		_show_feedback("You don't have any to sell!", Color(0.85, 0.3, 0.1))
+		return
+	for i in range(to_sell):
+		PlayerData.use_item(item["id"])
+	var earned = to_sell * item["price"]
+	PlayerData.add_coins(earned)
+	_show_feedback("Sold %d %s for %d coins!" % [to_sell, item["name"], earned], Color(0.1, 0.6, 0.1))
 	_update_overlay_coins()
 	_update_inv_label()
 	PlayerData.save_game()

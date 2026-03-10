@@ -19,6 +19,12 @@ var inventory: Dictionary = {
 	"fertilizer": 0,
 	"sprinkler": 0,
 	"animal_food": 0,
+	"sunflower": 0,
+	"carrot": 0,
+	"strawberry": 0,
+	"egg": 0,
+	"milk": 0,
+	"bacon": 0,
 }
 
 # Farm tiles: array of dicts with keys: state, crop_type, growth, watered
@@ -75,6 +81,12 @@ func reset() -> void:
 		"fertilizer": 0,
 		"sprinkler": 0,
 		"animal_food": 0,
+		"sunflower": 0,
+		"carrot": 0,
+		"strawberry": 0,
+		"egg": 0,
+		"milk": 0,
+		"bacon": 0,
 	}
 	animals = []
 	animals_tended_today = false
@@ -168,6 +180,12 @@ func water_tile(tile_index: int) -> bool:
 		return true
 	return false
 
+const SEED_TO_HARVEST = {
+	"sunflower_seeds": "sunflower",
+	"carrot_seeds": "carrot",
+	"strawberry_seeds": "strawberry",
+}
+
 func harvest_tile(tile_index: int) -> String:
 	if tile_index >= farm_tiles.size():
 		return ""
@@ -179,8 +197,8 @@ func harvest_tile(tile_index: int) -> String:
 	tile["crop_type"] = ""
 	tile["growth"] = 0
 	tile["watered"] = false
-	var rewards = {"sunflower_seeds": 6, "carrot_seeds": 10, "strawberry_seeds": 16}
-	add_coins(rewards.get(crop, 5))
+	var harvest_item = SEED_TO_HARVEST.get(crop, "sunflower")
+	add_item(harvest_item, 1)
 	return crop
 
 func add_animal(animal_type: String) -> void:
